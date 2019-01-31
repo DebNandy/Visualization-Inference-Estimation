@@ -1,0 +1,201 @@
+---
+title: "Final Exam - Part One"
+author: "46-921, Fall 2018"
+date: "Friday, October 19"
+output: pdf_document
+---
+
+\large
+
+```{r setup, include=FALSE,message=FALSE}
+#setwd("~/Teaching/MSCF/DScourses/FinalExam/Mini1/2018")
+knitr::opts_chunk$set(echo = TRUE)
+library(quantmod)
+library(ggplot2)
+```
+
+#General Instructions
+
+Please read the following carefully:
+
+1. You have three hours total to work on the exam (both Parts One and Two), starting at
+10:00 AM and ending at 1:00 PM. You will have to stop
+working on the exam at 1:00 PM regardless of what time you
+started working on the exam.
+
+2. You are allowed to use any notes, calculators, web sites,
+etc. that you wish, but you are not allowed to listen to any
+audio, and you are __not allowed to communicate with anyone
+else__, regardless of whether or not they are a student in the
+course.
+
+3. Remember that plots must be __readable__ and axes appropriately
+labelled.
+
+4. You are to turn in this .Rmd file and the corresponding
+.pdf file. __Once you turn in Part One, then Part Two will become
+available to you.__
+
+5. Only your __first__ submission of Part One will be graded.
+
+6. In all cases, please __be clear__ in your steps and your
+explanations.
+
+7. You can use any R packages and/or functions that you deem
+helpful. We need to be able to reproduce your code, however.
+We will install R packages, if needed.
+
+8. Please name your submission `YOURANDREWID_PARTONE.Rmd`.
+
+9. The number of points for
+each question is shown in bold at the end of the question.
+Everyone receives 20 points for free. Part One is worth
+20 points. Part Two is worth 60 points.
+
+\newpage
+
+
+#The Data
+
+We will use the "Blockholders" data set obtained from _Wharton Research Data Services_.
+Their description is as follows:
+
+"This dataset contains standardized data for blockholders of 1,913 companies. The data was cleaned from biases and mistakes usually observed in the standard source for this particular type of data. Blockholders' data is reported by firm for the period 1996-2001. The data cleaning procedure is explained in detail by Jennifer Dlugosz, Rudiger Fahlenbrach, Paul A. Gompers, and Andrew Metrick in their study 'Large Blocks of Stocks: Prevalance, Size, and Measurement'."
+
+A _blockholder_ is a general term for a shareholder who
+holds a large number of shares in that company, and hence
+has a relatively large influence on company decisions.
+
+The data file can be found on Canvas, in the "Final Exam"
+folder under "Files." The name is `blockholders.csv`.
+
+A list of variables is provided on the following page. 
+
+\newpage
+
+\#           Name         Description
+-----------  ------       -----------
+1	           `CompName`   Company Name
+2	           `group2`     category of percentage blockholdings (0, 5-10, 10-15, 15-25, 25-50, >50)
+3	           `SH_name`    Name of the blockholder as identified in the proxy statement
+4	           `mtgdate`    Date of the annual proxy meeting
+5	           `shrsrcd`    Date the Def14 A was filed with the SEC.
+6	           `Ticker`     Ticker Symbol
+7	           `Partial`    Corrected for partial overlap in raw data
+8	           `Full`       Corrected for Full overlap situation in raw data
+9	           `PrefFlag`   Corrected for Wrong attribution of preferred shares in raw data
+10	         `irrcyear`   Year of the annual meeting
+11	         `other`      Corrected for Wrong entry in raw data
+12	         `sumblks`    Percentage held by all blockholders for that firm-year
+13	         `numblks`    Number of all blockholders for that firm-year
+14	         `sumaflin`   Percentage held by all affiliated blockholders
+15	         `sumout`     Percentage held by all outside blockholders
+16	         `sumesop`    Percentage held by all ESOP-related blockholders
+17	         `sumdir`     Percentage held by all non-officer director blockholders
+18	         `sumoff`     Percentage held by all officer blockholders
+19	         `numaflin`   Number of affiliated blockholders
+20	         `numout`     Number of outside blockholders
+21	         `numesop`    Number of ESOP (Employee Share Ownership Plans) blockholders
+22	         `numdir`     Number of non-officer director blockholders
+23	         `numoff`     Number of officer blockholders
+24	         `firm_id`    Unique firm-year identifier
+25	         `ID`         Unique Blockholder-firm-year identifier
+26	         `Shrsrc`     Source of blockholder data
+27	         `shpct`      Percentage held by the blockholder, corrected for 
+                          overlapping share holdings
+28	         `sh_off`     The blockholder is an officer of the company
+29	         `sh_dir`     Owned by a director of the company
+30	         `ih_of_lb`   Block held indirectly 
+                          (shares are attributed to other holder identified through `bh_ind`)
+31	         `bh_ind`     Block held indirectly
+32	         `bh_flag`    Counted as blockholder in adjusted data
+33	         `aflin`      Block held by an affiliated entity
+34	         `esopblk`    Held by an entity in its role as trustee for an employee stock
+                          ownership plan
+35	         `dir`        Owned by a non-officer director of the company
+36	         `officer`    Owned by an officer (and possibly also a director) of the company
+37	         `out`        Owner is neither an affiliated entity, nor an officer, nor a director,
+                          nor an ESOP trustee
+-----------  ------       -----------
+
+
+
+\newpage
+
+
+#Part 1: Data Prepartion
+
+Take the following steps to create the data set that will be used for
+further analysis:
+
+\vspace{.2in}
+1. Read in the data set appropriately. __(5)__
+
+```{r}
+FullData = read.csv("blockholders.csv", header = TRUE, sep = ",")
+```
+
+\vspace{.2in}
+2. Remove all of the rows for which the variable `SH_name` is "Firm has no blockholder." __(3)__
+
+```{r}
+library(dplyr)
+FilteredData = filter(FullData, FullData$SH_name!= "Firm has no blockholder")
+# Insert R command(s) here.
+```
+
+\vspace{.2in}
+3. The empty entries that appear in this data set are not actually "missing."
+Instead, the columns with empty entries (e.g., `Partial`, `Full`, `PrefFlag`, etc.) are
+_logical_ variables which indicate whether or not some condition holds.
+For example, the variable `officer` indicates whether or not the blockholder is
+an officer in the company.
+In the original data file,
+`1` indicates TRUE, and an empty entry indicates FALSE. Appropriately transform these
+columns into R's logical format, i.e., filled with `TRUE` and `FALSE`. __(5)__
+
+```{r}
+FilteredData[is.na(FilteredData)] = 0
+```
+
+\vspace{.2in}
+4. Appropriately format the two date columns into R's date format. __(3)__
+
+```{r}
+library("anytime")
+FilteredData$mtgdate = anydate(as.character(FilteredData$mtgdate))
+FilteredData$shrsrcd = anydate(as.character(FilteredData$shrsrcd))
+```
+
+\vspace{.2in}
+5. Treat the variables `group2`, `Ticker` and `Shrsrc` as factors (categorical
+variables), and `CompName`, `SH_name`, `firm_id`, and `ID` as character information. Make sure that R has them properly
+represented, and convert as needed. __(4)__
+
+```{r}
+FilteredData[c("group2","Ticker", "Shrsrc")] = lapply(FilteredData[c("group2",
+                                              "Ticker", "Shrsrc")] , factor)
+FilteredData$CompName = as.character(FilteredData$CompName)
+FilteredData$SH_name = as.character(FilteredData$SH_name)
+FilteredData$firm_id = as.character(FilteredData$firm_id)
+FilteredData$ID = as.character(FilteredData$ID)
+#Should return True for below
+is.factor(FilteredData$group2)
+is.factor(FilteredData$Ticker)
+is.factor(FilteredData$Shrsrc)
+
+#Should return False for below
+is.factor(FilteredData$CompName)
+is.factor(FilteredData$SH_name)
+is.factor(FilteredData$firm_id)
+is.factor(FilteredData$ID)
+
+```
+
+\vspace{.3in}
+_This is the end of Part One of the exam. Once you have finished Part One, create the .pdf file from this .Rmd file, and then submit both on Canvas. This will make the second part of the exam available to you._
+
+_Remember that you cannot resubmit this first part._
+
+
+

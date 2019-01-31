@@ -1,0 +1,354 @@
+---
+title: "Final Exam - Part Two"
+author: "46-921, Fall 2018"
+date: "Friday, October 19"
+output: pdf_document
+---
+
+\large
+
+```{r setup, include=FALSE,message=FALSE}
+#setwd("~/Teaching/MSCF/DScourses/FinalExam/Mini1/2018")
+knitr::opts_chunk$set(echo = TRUE)
+library(quantmod)
+library(ggplot2)
+```
+
+#General Instructions
+
+Please read the following carefully:
+
+1. You have three hours total to work on the exam (both Parts One and Two), starting at
+10:00 AM and ending at 1:00 PM. You will have to stop
+working on the exam at 1:00 PM regardless of what time you
+started working on the exam.
+
+2. You are allowed to use any notes, calculators, web sites,
+etc. that you wish, but you are not allowed to listen to any
+audio, and you are __not allowed to communicate with anyone
+else__, regardless of whether or not they are a student in the
+course.
+
+3. Remember that plots must be __readable__ and axes appropriately
+labelled.
+
+4. You are to turn in this .Rmd file and the corresponding
+.pdf file. __Once you turn in Part One, then Part Two will become
+available to you.__
+
+5. Only your __first__ submission of Part One will be graded.
+
+6. In all cases, please __be clear__ in your steps and your
+explanations.
+
+7. You can use any R packages and/or functions that you deem
+helpful. We need to be able to reproduce your code, however.
+We will install R packages, if needed.
+
+8. Please name your submission `YOURANDREWID_PARTTWO.Rmd`.
+
+9. The number of points for
+each question is shown in bold at the end of the question.
+Everyone receives 20 points for free. Part One is worth
+20 points. Part Two is worth 60 points.
+
+\newpage
+
+
+#The Data
+
+We will use the "Blockholders" data set obtained from _Wharton Research Data Services_.
+Their description is as follows:
+
+"This dataset contains standardized data for blockholders of 1,913 companies. The data was cleaned from biases and mistakes usually observed in the standard source for this particular type of data. Blockholders' data is reported by firm for the period 1996-2001. The data cleaning procedure is explained in detail by Jennifer Dlugosz, Rudiger Fahlenbrach, Paul A. Gompers, and Andrew Metrick in their study 'Large Blocks of Stocks: Prevalance, Size, and Measurement'."
+
+A _blockholder_ is a general term for a shareholder who
+holds a large number of shares in that company, and hence
+has a relatively large influence on company decisions.
+
+The data file can be found on Canvas, in the "Final Exam"
+folder under "Files." The name is `blockholders.csv`.
+
+A list of variables is provided on the following page. 
+
+\newpage
+
+\#           Name         Description
+-----------  ------       -----------
+1	           `CompName`   Company Name
+2	           `group2`     category of percentage blockholdings (0, 5-10, 10-15, 15-25, 25-50, >50)
+3	           `SH_name`    Name of the blockholder as identified in the proxy statement
+4	           `mtgdate`    Date of the annual proxy meeting
+5	           `shrsrcd`    Date the Def14 A was filed with the SEC.
+6	           `Ticker`     Ticker Symbol
+7	           `Partial`    Corrected for partial overlap in raw data
+8	           `Full`       Corrected for Full overlap situation in raw data
+9	           `PrefFlag`   Corrected for Wrong attribution of preferred shares in raw data
+10	         `irrcyear`   Year of the annual meeting
+11	         `other`      Corrected for Wrong entry in raw data
+12	         `sumblks`    Percentage held by all blockholders for that firm-year
+13	         `numblks`    Number of all blockholders for that firm-year
+14	         `sumaflin`   Percentage held by all affiliated blockholders
+15	         `sumout`     Percentage held by all outside blockholders
+16	         `sumesop`    Percentage held by all ESOP-related blockholders
+17	         `sumdir`     Percentage held by all non-officer director blockholders
+18	         `sumoff`     Percentage held by all officer blockholders
+19	         `numaflin`   Number of affiliated blockholders
+20	         `numout`     Number of outside blockholders
+21	         `numesop`    Number of ESOP (Employee Share Ownership Plans) blockholders
+22	         `numdir`     Number of non-officer director blockholders
+23	         `numoff`     Number of officer blockholders
+24	         `firm_id`    Unique firm-year identifier
+25	         `ID`         Unique Blockholder-firm-year identifier
+26	         `Shrsrc`     Source of blockholder data
+27	         `shpct`      Percentage held by the blockholder, corrected for 
+                          overlapping share holdings
+28	         `sh_off`     The blockholder is an officer of the company
+29	         `sh_dir`     Owned by a director of the company
+30	         `ih_of_lb`   Block held indirectly 
+                          (shares are attributed to other holder identified through `bh_ind`)
+31	         `bh_ind`     Block held indirectly
+32	         `bh_flag`    Counted as blockholder in adjusted data
+33	         `aflin`      Block held by an affiliated entity
+34	         `esopblk`    Held by an entity in its role as trustee for an employee stock
+                          ownership plan
+35	         `dir`        Owned by a non-officer director of the company
+36	         `officer`    Owned by an officer (and possibly also a director) of the company
+37	         `out`        Owner is neither an affiliated entity, nor an officer, nor a director,
+                          nor an ESOP trustee
+-----------  ------       -----------
+
+
+
+\newpage
+
+
+#Data Prepartion
+
+The R code below will prepare the data set that will be used for
+further analysis. 
+
+_Please do not alter this code._
+
+```{r,message=FALSE}
+library(dplyr)
+
+# Step 1
+blockdat = read.table("blockholders.csv",header=T,sep=",",
+                 quote="", stringsAsFactors = FALSE)
+
+# Step 2
+blockdat = filter(blockdat, SH_name != "Firm has no blockholder")
+
+# Step 3
+for(i in 1:ncol(blockdat))
+{
+  if(any(is.na(blockdat[,i])))
+  {
+    blockdat[,i] = !is.na(blockdat[,i])
+  }
+}
+
+# Step 4
+blockdat$mtgdate = as.Date(as.character(blockdat$mtgdate),
+                        format="%d%b%Y")
+
+blockdat$shrsrcd = as.Date(as.character(blockdat$shrsrcd),
+                        format="%d%b%Y")
+
+# Step 5
+blockdat$Ticker = factor(blockdat$Ticker)
+blockdat$Shrsrc = factor(blockdat$Shrsrc)
+blockdat$group2 = factor(blockdat$group2)
+```
+
+\newpage
+You will note that in the original data frame, there is one row per blockholder. The result is that for each ticker symbol/year combination, there are multiple lines. For example, rows 1 through 3 of the data frame are three blockholders for Alcoa (AA) for 1996. You will note that the value of variables such as `sumblks` are the same for all three of these entries:
+```{r}
+blockdat[1:3,]
+```
+
+We will create a new data frame here by creating one entry per ticker symbol, per year, in order to remove this redundancy.
+
+```{r}
+blockdatsub = blockdat[!duplicated(blockdat[,c(6,10)]),]
+```
+
+After this step, however, we note that there are differing number of
+years for each ticker symbol. Not all symbols have entries across the six years represented in this data set. We want to restrict to those ticker symbols with six years of data, so we take the following steps:
+
+```{r}
+sbt = split(blockdatsub, blockdatsub$Ticker)
+
+blockdatsub = 
+  blockdatsub[blockdatsub$Ticker %in% names(which(lapply(sbt,nrow) == 6)),]
+```
+
+The data frame `blockdatsub` now has 2556 rows, six rows for each of 
+426 ticker symbols. The six entries correspond to the six years represented
+in the data set.
+
+```{r}
+table(blockdatsub$irrcyear)
+```
+
+\newpage
+
+#Exercises in Data Exporation
+
+\vspace{.2in}
+1. Create a scatter plot which shows the relationship
+between the percentage held by all blockholders (`sumblks`)
+and the year (`irrcyear`) for the 426 ticker symbols with
+coverage of all six years. _Remember that you need to
+appropriately label axes and that readability is important._
+__(10)__
+
+```{r}
+library(ggplot2)
+baseplot = ggplot(data = blockdatsub, mapping = aes(x=blockdatsub$irrcyear,
+                                                    y=blockdatsub$sumblks))
+baseplot + geom_point(size=0.5,color="blue") + 
+  labs(x="Year", y="Percent held (%)", 
+       title= "Percent held by blockholders with time")
+```
+
+\vspace{.2in}
+2. Fit a simple linear regression model to the relationship between `sumblks` and `irrcyear`. The objective is to determine if there is a change in the percentage of shares held by blockholders over time. What is the relevant slope of the regression line in this fit? What is the standard error on the estimate of this slope?
+Would you conclude that there is evidence of an upward or downward trend in this relationship? __(10)__
+
+Answer: Below is the linear regression model fit between `sumblks` and `irrcyear` and summary of the same. The summary of the linear regression fit shows a positive correlation between the percent-held by blockholders and time, meaning the percent-held by blockholders has increased over the years. The point estimate of the slope of the regression line in this fit is 0.4363 with a standard error of 0.1812. The standard error is pretty large, more than 2/5-th of the point estimate of the slope. And the t-statistic is quite small. 
+
+Above information shows that the confindence statistics of the fit is not very strong of an evidence to comment on the linear relation between the percent-held by blockholders over time. I will conclude based on the linear regression that there is not much of an evidence of an upward or downward trend in this relationship as the quality of the fit is very poor. 
+```{r}
+holdout = lm(blockdatsub$sumblks ~ blockdatsub$irrcyear)
+summary(holdout)
+```
+
+Below shows the scatter and linear regression fit line on same plot.
+
+```{r}
+baseplot + geom_point(size=0.5,color="blue") + 
+  labs(x="Year", y="Percent held (%)",
+       title= "Linear Regression : % held by blockholders with time")+
+  geom_smooth(method="lm")
+```
+
+
+\vspace{.2in}
+3. What is the value of $R^2$ (the coefficient of determination) from the above fit? Also, create the plot of residuals versus fitted values for the
+above fit. What do each of these two ($R^2$ and the plot of
+residuals versus fitted values) tell you about the quality of
+the model fit in this case? __(10)__
+
+Answer: Reading from the summary output of the fit, the $R^2$ of the above fit is 0.001874 or 0.187\%. Below R-commands create the plot of residuals versus fitted values. 
+The $R^2$ value of the plot is very low to consider this fit as a significant evidence for the linear relation. At the same time, the residual plot doesn't resemble a scatter around 0 (normality) in order to characterize this fit as good. We can see large deviations from 0 in the residuals plot. There are more than twice the number of residual points which are more than 0 compared to points which are less than 0, with the tail of the large residuals going beyond value of 50 whereas small residuals are all below -25. This not-so-scattered residuals shows that this linear regression fit lacks the evidence of confirming this as a correct relation.
+
+```{r}
+residualplot = ggplot(data = holdout, mapping = aes(x=holdout$fitted.values,
+                                                    y=holdout$residuals))
+residualplot + geom_point(size=0.5,color="blue") + 
+  labs(x="Fitted Values",y="Residuals",
+       title= "Residual Plot: % held by blockholders over time")
+```
+
+\vspace{.2in}
+4. Recreate the scatter plot from Question 1, but this time add a nonparametric smooth on the scatter plot. Use `loess()` with the span set to 0.5. __(5)__
+
+Answer: Below scatter plot shows the non-parametric local linear regression smotthing on to the scatter plot. Using a span of 0.5 showed a conditioning error with logs showing near singularities etc. Using a span of 0.5004 works without any error so I am using that to proceed with the results.
+
+```{r}
+baseplot + geom_point(size=0.5,color="blue")  +
+  geom_smooth(method="loess", span = 0.5004,method.args = list(degree=1))+
+  labs(x="Year", y="Percent held (%)", 
+       title= "Local Linear Regression : % held by blockholders with time")
+```
+
+\vspace{.2in}
+5. For each of the 426 ticker symbols represented in this data set,
+fit a simple linear regression of `sumblks` versus `irrcyear`.
+(Hence, the result will be 426 regression models.)
+Create a histogram that depicts the distribution of the
+__slopes__ of these 426 regression lines. __(3)__
+
+Answer: Below, I write a for loop to perform ticker level regressiona and store the estimates of the slope. The histogram shows the distribution of the point estimates
+
+```{r}
+Tickers = unique(blockdatsub$Ticker)
+vector = c()
+for(val in Tickers)
+{
+  subdata = filter(blockdatsub,Ticker == val)
+  subreg  = lm(subdata$sumblks ~ subdata$irrcyear)
+  subsummary = summary(subreg)
+  vector = c(vector, subsummary$coefficients[2,1])
+}
+hist(vector,main="Histogram for Ticker Level Slope estimate", 
+     xlab="Slope estimate", 
+     border="black", 
+     col="blue")
+```
+
+\newpage
+_Return now to the original, full data set, i.e. the data frame
+in which each row represents one blockholder._
+
+\vspace{.2in}
+6. Consider the R code and output below.
+```{r}
+nrow(blockdat)
+sum(blockdat$officer)
+```
+
+We see that there are a total of 20034 blocks represented in this data set,
+and 1452 of them are held by individuals who are officers in that
+company.
+
+Create a pair of smoothed density estimates that compare the distribution of
+the share percentages between the blocks held by officers and the blocks
+not held by officers. (The relevant variable is `shpct`.) Use the Sheather-Jones
+method to choosing the smoothing parameter. __(10)__
+
+Answer: Below plot shows the smoothed density distributions of the share percentages between the blocks held by officers and blocks not held by officers. 
+```{r}
+officerblockdat = filter(blockdat, blockdat$officer==1)
+nonofficerblockdat = filter(blockdat, blockdat$officer==0)
+
+ggplot(officerblockdat, aes(x=shpct), color='red') + geom_density(bw="SJ") +
+geom_density(data = nonofficerblockdat, aes(x=shpct), color='green',
+             bw = "SJ") + labs(x="Share Percent Held", color = "Blue")
+```
+
+\vspace{.2in}
+7. Reconsider the pair of density estimates created above. For which of the two
+distributions (officers or non-officers) do you believe that the smoothing
+parameter was chosen __smaller__? Explain. __(5)__
+
+Answer: The smoothing parameter calibrated under Sheather-Jones approach decreases with larger size of the data. The size of the data for the share percentages of the blocks not held by officers is more than 10 times largers than the corresponding size for share percetanges of the blocks held by officers. Thus the desnsity distribution for the share percentages not held by officers has a smaller smoothing parameter chosen by the Sheather-Jones approach.
+
+\vspace{.2in}
+8. Construct a _violin plot_ that explores the following question:
+Is there a relationship between the __month__ of the annual proxy meeting
+and the distribution of the share percentage held by blockholders (as
+given in `shpct`)? Note the behavior of the R function `months()`.
+Both construct the plot, and comment on any relationship that is
+evident. __(7)__
+
+Answer: Below plot shows the violin plots between the share percentage held by blockholders and month of the annual proxy meeting. The plot clearly shows that throughout all the months, very less number of blockholders hold share percentage more than 25\% and major amount of the distribution is within the range of 0-25%. 
+
+The exact relation between the share percentage held and month of the annual proxy meeting isn't much clear by looking at the plot because of the large range in the percentage. So to have a better enlarged view, I restrict the data to held percentage less than or equal to 25% and re-plot a violin plot to see if we can have a clearer picture of the relation
+
+```{r}
+ggplot(blockdat,aes(x=months(blockdat$mtgdate), y=blockdat$shpct)) + 
+  geom_violin() + 
+labs(x="Month of annual proxy meeting", y= "share percentage held by blockholders")
+```
+
+Below shows an enlarged view of the violin plot and reveals any month-over-month trend present in the share percentage held by the blockholders. We can observe that the distribution puts heavier weight on larger share percentages (>15\%) during the months of December, July, June, March and September. So it seems like during the months of quarter end, there is a trend of holding higher share percentage by the blockholders.
+We can also observe that during other months like April, August, February, May, October, major amount of the weight is concentrated around 5-7\% and also some amount of weight is present between 0-1%.
+```{r}
+zommedblockdat = filter(blockdat, blockdat$shpct <=25)
+ggplot(zommedblockdat,aes(x=months(zommedblockdat$mtgdate), y=zommedblockdat$shpct)) + 
+  geom_violin() +
+  labs(x="Month of annual proxy meeting", y= "share percent held (<= 25%)") 
+```           
