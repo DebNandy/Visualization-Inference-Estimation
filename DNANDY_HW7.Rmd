@@ -1,0 +1,81 @@
+---
+title: "Homework 1"
+author: "46-923, Fall 2018"
+date: "Due Tuesday, November 6 at 2:45 PM"
+output:
+  pdf_document: default
+  word_document: default
+  html_document:
+    df_print: paged
+---
+
+\large
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+You should submit the Rmd file for your analysis. Name the file as YOURANDREWID_HW1.Rmd
+and submit it via Canvas. Also submit the .pdf file that is produced..
+
+\vspace{.2in}
+
+
+
+As described in lecture, one approach to analyzing the time series data of stock prices we
+were using would be to first smooth the time series, and then use these smoothed time series
+as the input to algorithms. We will try this here.
+Again use the data set stocksample.txt as provided on Canvas.
+First, smooth each time series using loess(). I will leave the choice of the smoothing
+parameter up to you. After smoothing, you should use the predict() function to evaluate
+the fitted model on a regular grid of x values. These smoothed time series are what should
+be utilized in the dimension reduction. Use Isomap. Explore the first two-dimensions to see
+if there is meaningful low-dimensional structure in the plot.
+
+Answer: 
+
+I read the stockdata from the txt file which is in a tab-separated format. After that I run a for loop going through all the stock symbols and run the loess smoothening regression for each of the time series of the stocks. I choose a span of 5, but I tried running with different span and I got similar results so I chose to stick with the value of 5. 
+
+I then use the predict() function to get the smoothened value of each stock on a grid of values and override the dataframe. After that I perform standardization scaling to ensure the distance measure doesn't get biased by the large values of a stock, as we are trying to calculate similarity in time series trends and not actual prices between two stock.
+
+Then I calculate the euclidean distance between the scaled timeseries data and run it through isomap. I plot the first 2 dimension of the isomap and along with the sector specific labelling and can see that many stocks are clustured in one part of the plot. Closeness of two points in this plot signifies similarity of the corresponding time series trend of two stocks. Thus the clustured points would have similar trend in the corresponding time series.
+
+```{r}
+library(ggplot2)
+library(vegan)
+library(reshape2)
+stockdata = read.table("stocksample.txt", header=T, sep="\t",comment.char = '')
+
+symbols = unique(stockdata$symb)
+melted_data = melt(data = stockdata, id.vars = c("symb","sector"),measure.vars = seq(5,34))
+for(i in range(1:1000)){
+  symbol = symbols[i]
+  subset = melted_data[melted_data$symb == symbol,]
+  holdout = loess(subset$value ~ seq(1:30),data=stockdata, degree=1,span = 5)
+  fits = predict(holdout,newdata=as.matrix((seq(1:30))))
+  melted_data[melted_data$symb == symbol,]$value = fits
+}
+smoothed_output = dcast(melted_data,symb + sector~variable)
+smoothed_output_scaled = apply(smoothed_output[,3:32],1,scale)
+stockdistmat = dist(t(smoothed_output_scaled))
+isooutstocks = isomap(stockdistmat, k=5)
+iso_map_output = cbind(smoothed_output, isooutstocks$points[,1:5])
+
+ggplot(iso_map_output, aes(x=iso_map_output[,33],y=iso_map_output[,34],
+color=sector)) + geom_point() + labs(x=expression(U[1]), y=expression(U[2]))
+```
+
+\newpage
+Second, use the smoothed time series as part of a hierarchical clustering. Create the
+dendrogram using complete linkage clustering. Comment on any structure. Just as in lecture,
+run the clustering on only the first 100 symbols.
+
+Answer: 
+
+I run a hierarchical clustering to the first 100 stock prices and use a complete linkage clustering. I then plot the clustur dendogram which can help us to link the time series trends. From the structure, we can observe that largely there are 5 major branches which are very much dissimilar and stocks within each branch are nearly similar. This is the observation we can make when we look at the dendogram from top to bottom. Now if we try to look at the leaves of the dendogram, we can observe that in almost all the cases there is a pair of stock with almost same height, that means there are at least half the number of stocks with a very strong similarity with the other half of the data.
+
+```{r}
+hcout = hclust(dist(t(smoothed_output_scaled[,1:100])), method="complete")
+plot(hcout, labels=smoothed_output$name[1:100], cex=0.35,sub="", xlab="")
+```
+

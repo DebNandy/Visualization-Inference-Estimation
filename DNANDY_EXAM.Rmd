@@ -1,0 +1,611 @@
+---
+title: "Final Exam"
+author: "46-923, Fall 2018"
+date: "Monday, December 17"
+output: pdf_document
+---
+
+\large
+
+```{r setup, include=FALSE,message=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+#setwd("~/Teaching/MSCF/DScourses/FinalExam/Mini2/2018")
+```
+
+#General Instructions
+
+Please read the following carefully:
+
+1. You have three hours to work on the exam, starting at
+10:00 AM and ending at 1:00 PM. You will have to submit
+the exam before 1:00 PM regardless of what time you
+started working on the exam. You are not allowed to start
+working on the exam after 10:10 AM.
+
+2. You are allowed to use any notes, calculators, web sites,
+etc. that you wish, but you are not allowed to listen to any
+audio, and you are __not allowed to communicate with anyone
+else__, regardless of whether or not they are a student in the
+course.
+
+3. Remember that plots must be __readable__ and axes appropriately
+labelled.
+
+4. You are to turn in this .Rmd file and the corresponding
+.pdf file. Rename these files `YOURANDREWID_EXAM.Rmd` and
+`YOURANDREWID_EXAM.pdf`.
+
+5. In all cases, please __be clear__ in your steps and your
+explanations.
+
+6. You can use any R packages and/or functions that you deem
+helpful. We need to be able to reproduce your code, however.
+We will install R packages, if needed.
+
+7. Everyone receives 15 points for free. The number of points for
+each question is shown in bold at the end of the question. The
+total points is 85.
+
+\newpage
+
+#Question 1
+
+Suppose that $X_1, X_2,\ldots, X_n$ are iid and each has pdf
+\[
+    f_{X_i}(x; \theta) = \theta x_0^{\theta} \hspace{.02in}x^{-\theta -1}, \:\: x \geq x_0 > 0, \:\: \theta > 1.
+\]
+Here, $x_0$ is a known, fixed constant. The parameter $\theta$ is to be estimated from the data.
+
+The MLE for $\theta$ in this case is
+\[
+   \widehat \theta = \frac{1}{\overline{\log X} - \log{x_0}}
+\]
+where
+\[
+   \overline{\log X} = \frac{1}{n} \sum_{i=1}^n \left(\log X_i\right).
+\]
+
+
+a. Write an R function that takes as input a vector of observations
+of $X_1, X_2, \ldots, X_n$ and returns __both__ the
+maximum likelihood estimator for $\theta$ and the standard error 
+for the MLE. You can either use an analytical or numerical approach
+to finding the MLE and its standard error. __(10)__
+
+__Answer:__ I have used a numerical approach to calculating the MLE for the parameter. I also perform a re-parametrization of the parameter $\theta$ to $\alpha$, so that $\theta = 1+ e^ \alpha$ and thus $\theta$ will always stay greater than 1 for any value of $\alpha$ and I perform the numerical optimization over the parameter $\alpha$.
+
+I also sample from the given distribution to test for the validity of the numerical approach and it converges and provides the correct solution.
+
+```{r}
+distmle = function(x,x0)
+{
+# The negative of the log-likelihood. This will be minimized via optim().
+negloglikelihood = function(alpha,x,x0)
+{
+  theta = 1+ exp(alpha)
+  n = length(x)
+  loglikehood = n* (log(theta) + theta*log(x0)) - (theta+1) * sum(log(x))
+return( (-1)*loglikehood)
+}
+# Set the starting value
+# a little far from the actual MLE estimate from analytical approach
+thetastart = 1.1/(mean(log(x)) - log(x0))
+alphastart = log(thetastart)-1
+# The optimization.
+optimout = optim(alphastart,negloglikelihood,x=x,x0=x0,hessian=T,method = "BFGS")
+hessian = optimout$hessian
+var = 1/hessian
+se = sqrt(var)
+return(list(mle = 1 + exp(optimout$par), se=se))
+}
+
+#PERFORM VALIDITY AND ACCURACY TEST
+set.seed(2)
+reps = 1000
+
+mleout = numeric(reps)
+seout  = numeric(reps)
+x0=4
+theta = 2 #true value
+for(i in 1:reps)
+{
+  u = runif(30)
+  x = x0 / (1-u)^(1/theta)
+  result = distmle(x,x0)
+  mleout[i] = result$mle
+  seout[i] = result$se
+}
+#expect this to be close to theta = 2
+print(mean(mleout))
+#expect this to be close to sqrt(theta^2/n) = sqrt(4/30) = 0.365
+print(mean(seout))
+```
+
+b. Fix a constant $a > x_0$.
+Let $\tau$ denote the _tail probability_ $P(X_i > a)$.
+For any of these $X_i$, it holds that
+\[
+   \tau = P(X_i > a) = \left(\frac{x_0}{a}\right)^{\theta}.
+\]
+Write an R function that takes as input a vector of observations
+of $X_1, X_2, \ldots, X_n$ and returns __both__ the
+maximum likelihood estimator for $\tau$ and the standard error 
+for the MLE. You can either use an analytical or numerical approach
+to finding the MLE and its standard error.
+You can use the following fact:
+\[
+   \frac{\partial}{\partial \theta} \left(\frac{x_0}{a}\right)^{\theta}
+   = \left(\frac{x_0}{a}\right)^{\theta} \log\!\left(\frac{x_0}{a}\right).
+\]
+__(5)__
+
+__Answer:__ Using the numerical approach is handy here as MLE and S.E. of any function (complicated) of the parameter can be calculated using the delta method and invariance property of the MLE. Below calculates the MLE and S.E. of $\tau$
+
+```{r}
+#Insert your R code here
+
+taumlefunc = function(x,x0,a)
+{
+  mleresult = distmle(x,x0)
+  thetamle = mleresult$mle
+  thetavar = (mleresult$se)^2
+  taumle = (x0/a)^thetamle 
+  mult = (taumle*log(x0/a))^2
+  tauvar = mult*thetavar
+  tause = sqrt(tauvar)
+  return(list(mle = taumle, se=tause))
+}
+
+#PERFORM VALIDITY AND ACCURACY TEST
+set.seed(0)
+reps = 1000
+taumleout = numeric(reps)
+x0=4
+a = 2*x0
+theta = 2 #true value
+for(i in 1:reps)
+{
+  u = runif(40)
+  x = x0 / (1-u)^(1/theta)
+  result = taumlefunc(x,x0,a)
+  taumleout[i] = result$mle
+}
+#expect this to be (x0/a)^theta = (1/2)^2 = 0.25
+print(mean(taumleout))
+```
+
+
+\newpage
+#Question 2
+
+Suppose that $X_1, X_2, \ldots, X_n$ are iid with the Exponential$(\theta)$
+distribution. Recall that this means that $E(X_i) = 1/\theta$. We want to take
+a Bayesian approach to estimating $\theta$. In particular, 
+we want to use a Gamma$(\alpha,\beta)$
+prior on $\theta$.
+
+Write an R function that takes in the sample of observations of
+$X_1, X_2, \ldots, X_n$ and
+returns a graph of the posterior for $\theta$ given this sample.
+Either a numerical or analytical appraoch to this question is possible,
+and either approach is fine.
+__(5)__
+
+__Answer:__ I derived the posterior parameters analytically and found that $\alpha_{post} = \alpha_{prior} + n$ and $\beta_{post} = \beta_{prior} + \sum_{i=1}^n X_i$. Then I plot the gamma density function with posterior parameters
+
+```{r}
+posteriorfunc = function(x,alpha,beta)
+{
+  postalpha = alpha + length(x)
+  postbeta = beta + sum(x)
+  
+  curve(dgamma(x,postalpha,postbeta), from = 0, to = 2*postalpha/postbeta,
+xlab=expression(theta), ylab="Density",
+col=4, lwd=2, lty=2, n=1000)
+}
+
+#TEST FOR ACCURACY AND VALIDITY
+sample = rexp(1000,4)
+posteriorfunc(sample,10,2)
+```
+
+\newpage
+#Question 3
+
+Suppose that a hypothesis test is performed, and the result is that the p-value
+is found to be 0.045. The correct conclusion in this case is which of the following?
+(Recall that $\alpha$ denotes the user-specified probability of a Type I error when
+conducting the test.) __(5)__
+
+__Choose One:__
+
+a. The null hypothesis should definitely be rejected.
+
+b. The probability that the null hypothesis is true is 0.045.
+
+c. Only someone who would choose $\alpha$ smaller than 0.045 would fail to reject the
+null hypothesis.
+
+d. Only someone who would choose $\alpha$ smaller than 0.045 would reject the
+null hypothesis.
+
+__REPLACE THE X WITH YOUR ANSWER: C__
+
+
+#Question 4
+
+Suppose that $X$ has the binomial$(n,p)$ distribution. What can
+be said about $\widehat p = X/n$? __(5)__
+
+__Choose One:__
+
+a. $\widehat p$ is an unbiased estimator of $p$.
+
+b. $\widehat p$ is the maximum likelihood estimator for $p$.
+
+c. The mean squared error (MSE) of $\widehat p$ as an estimator of $p$
+is $p(1-p)/n$.
+
+d. All of the above.
+
+__REPLACE THE X WITH YOUR ANSWER: D__
+
+
+\newpage
+
+#Question 5
+Suppose I take two __different__ pdfs, call them $f_1(x; \theta_1)$ and $f_2(x; \theta_2)$, and
+_mix_ them to make a new function $f^*(x; \theta_1, \theta_2, \alpha)$:
+\[
+   f^*(x; \theta_1, \theta_2, \alpha) = \alpha f_1(x; \theta_1) + (1-\alpha) f_2(x; \theta_2)
+\]
+where $0 \leq \alpha \leq 1$.
+Then note that this new function $f^*$ is itself a pdf
+since it is nonnegative and
+
+\begin{eqnarray*}
+   \int_{-\infty}^{\infty} f^*(x; \theta_1, \theta_2, \alpha) \:dx
+   & = &
+   \int_{-\infty}^{\infty}
+   \left[
+   \alpha f_1(x; \theta_1) + (1-\alpha) f_2(x; \theta_2)
+   \right] \:dx \\
+   & = & \alpha \int_{-\infty}^{\infty} f_1(x; \theta_1) \:dx + (1-\alpha)
+    \int_{-\infty}^{\infty} f_2(x; \theta_2) \:dx \\
+   & = & \alpha + (1-\alpha) \\
+   & = & 1.
+\end{eqnarray*}
+
+This is a strategy for constructing a new distribution: You are taking
+a weighted average of two other pdfs to construct a new pdf. The parameters are now $\theta_1$,
+$\theta_2$, __and__ $\alpha$. These could all be estimated using maximum likelihood. Indeed,
+there are well-established ways of doing exactly this: With the appropriate software, the
+likelihood can be maximized without much difficulty.
+
+The idea could be taken a step further: Instead of two densities, one could mix together $m$
+densities:
+\[
+   f^*(x; \theta_1, \theta_2, \ldots, \theta_m, \alpha_1, \alpha_2, \ldots, \alpha_m) =
+   \sum_{i=1}^{m}
+   \alpha_i f_i(x; \theta_i)
+\]
+where the $\alpha_i$ are nonnegative and sum to one. Then, the entire collection of parameters
+$(\theta_1, \theta_2, \ldots, \theta_m, \alpha_1, \alpha_2, \ldots, \alpha_m)$ could be
+estimated using maximum likelihood.
+
+__Now__, which of the following statements do you agree with? __(5)__
+
+__Choose as many as you wish.__
+
+a. It would be a good idea to minimize AIC instead of maximizing the log likelihood in order to take into account the growing flexibility of the model as $m$ increases. 
+
+b. This procedure seems like a good idea, since if $m$ is chosen large enough we could get our estimated
+pdf to match exactly the histogram of the observed data.
+
+c. Such a procedure should never be utilized in practice. Our model choices should be based only on deep understanding of the processes that generated the data.
+
+d. If $m$ is chosen too large, there is risk of overfitting to the data.
+
+__REPLACE THE X WITH YOUR ANSWER(S): A, D__
+
+
+\newpage
+#Blockholder Data
+
+We will revisit the "Blockholders" data set obtained from _Wharton Research Data Services_ that we used in the final exam in Mini 1.
+Their description is as follows:
+
+"This dataset contains standardized data for blockholders of 1,913 companies. The data was cleaned from biases and mistakes usually observed in the standard source for this particular type of data. Blockholders' data is reported by firm for the period 1996-2001. The data cleaning procedure is explained in detail by Jennifer Dlugosz, Rudiger Fahlenbrach, Paul A. Gompers, and Andrew Metrick in their study 'Large Blocks of Stocks: Prevalance, Size, and Measurement'."
+
+A _blockholder_ is a general term for a shareholder who
+holds a large number of shares in that company, and hence
+has a relatively large influence on company decisions.
+
+The data file can be found on Canvas, in the "Final Exam"
+folder under "Files." The name is `blockholders.csv`.
+
+A list of variables is provided on the following page. 
+
+\newpage
+
+\#           Name         Description
+-----------  ------       -----------
+1	           `CompName`   Company Name
+2	           `group2`     category of percentage blockholdings (0, 5-10, 10-15, 15-25, 25-50, >50)
+3	           `SH_name`    Name of the blockholder as identified in the proxy statement
+4	           `mtgdate`    Date of the annual proxy meeting
+5	           `shrsrcd`    Date the Def14 A was filed with the SEC.
+6	           `Ticker`     Ticker Symbol
+7	           `Partial`    Corrected for partial overlap in raw data
+8	           `Full`       Corrected for Full overlap situation in raw data
+9	           `PrefFlag`   Corrected for Wrong attribution of preferred shares in raw data
+10	         `irrcyear`   Year of the annual meeting
+11	         `other`      Corrected for Wrong entry in raw data
+12	         `sumblks`    Percentage held by all blockholders for that firm-year
+13	         `numblks`    Number of all blockholders for that firm-year
+14	         `sumaflin`   Percentage held by all affiliated blockholders
+15	         `sumout`     Percentage held by all outside blockholders
+16	         `sumesop`    Percentage held by all ESOP-related blockholders
+17	         `sumdir`     Percentage held by all non-officer director blockholders
+18	         `sumoff`     Percentage held by all officer blockholders
+19	         `numaflin`   Number of affiliated blockholders
+20	         `numout`     Number of outside blockholders
+21	         `numesop`    Number of ESOP (Employee Share Ownership Plans) blockholders
+22	         `numdir`     Number of non-officer director blockholders
+23	         `numoff`     Number of officer blockholders
+24	         `firm_id`    Unique firm-year identifier
+25	         `ID`         Unique Blockholder-firm-year identifier
+26	         `Shrsrc`     Source of blockholder data
+27	         `shpct`      Percentage held by the blockholder, corrected for 
+                          overlapping share holdings
+28	         `sh_off`     The blockholder is an officer of the company
+29	         `sh_dir`     Owned by a director of the company
+30	         `ih_of_lb`   Block held indirectly 
+                          (shares are attributed to other holder identified through `bh_ind`)
+31	         `bh_ind`     Block held indirectly
+32	         `bh_flag`    Counted as blockholder in adjusted data
+33	         `aflin`      Block held by an affiliated entity
+34	         `esopblk`    Held by an entity in its role as trustee for an employee stock
+                          ownership plan
+35	         `dir`        Owned by a non-officer director of the company
+36	         `officer`    Owned by an officer (and possibly also a director) of the company
+37	         `out`        Owner is neither an affiliated entity, nor an officer, nor a director,
+                          nor an ESOP trustee
+-----------  ------       -----------
+
+
+
+\newpage
+
+
+#Data Prepartion
+
+The R code below will prepare the data set that will be used for
+further analysis. 
+
+_Please do not alter this code._
+
+```{r,message=FALSE}
+library(dplyr)
+
+# Step 1
+blockdat = read.table("blockholders.csv",header=T,sep=",",
+                 quote="", stringsAsFactors = FALSE)
+
+# Step 2
+blockdat = filter(blockdat, SH_name != "Firm has no blockholder")
+
+# Step 3
+for(i in 1:ncol(blockdat))
+{
+  if(any(is.na(blockdat[,i])))
+  {
+    blockdat[,i] = !is.na(blockdat[,i])
+  }
+}
+
+# Step 4
+blockdat$mtgdate = as.Date(as.character(blockdat$mtgdate),
+                        format="%d%b%Y")
+
+blockdat$shrsrcd = as.Date(as.character(blockdat$shrsrcd),
+                        format="%d%b%Y")
+
+# Step 5
+blockdat$Ticker = factor(blockdat$Ticker)
+blockdat$Shrsrc = factor(blockdat$Shrsrc)
+blockdat$group2 = factor(blockdat$group2)
+```
+
+\newpage
+You will note that in the original data frame, there is one row per blockholder. The result is that for each ticker symbol/year combination, there are multiple lines. For example, rows 1 through 3 of the data frame are three blockholders for Alcoa (AA) for 1996. You will note that the value of variables such as `sumblks` are the same for all three of these entries:
+```{r}
+blockdat[1:3,]
+```
+
+\newpage
+#Question 6
+
+Consider the variable `shpct` that is part of the data frame `blockdat`.
+This is a percentage, so it can easily be transformed into a proportion:
+```{r}
+shprop = blockdat$shpct/100
+```
+Suppose you wanted to fit a Beta$(\alpha,\beta)$ distribution to the sample of data stored
+in `shprop`. Use a numerical approach to find the MLE of $\alpha$ and $\beta$ in this case. __(10)__
+
+Hint: You will need the R function `dbeta()`.
+
+__Answer:__ I write a function to calculate the neg-loglikelihood of the data under beta distribution. I used the MOM estimators as starting point. I apply this estimation on the shprop data and below are the results.
+
+```{r}
+betamle = function(x)
+{
+# The negative of the log-likelihood. This will be minimized via optim().
+negloglikelihood = function(pars,x)
+{
+  y = x[x>0] #some values are 0 and causing numerical problems
+return((-1)*sum(dbeta(y,pars[1],pars[2],log=T)))
+}
+# Set the starting values for the algorithm at the MOM estimates.
+xbar = mean(x)
+xsd = sd(x)
+alphahat = xbar*(xbar*(1-xbar)/(xsd^2) -1)
+betahat = alphahat*(1-xbar)/xbar
+# The optimization
+optimout = optim(c(alphahat,betahat), negloglikelihood,x=x,hessian=T)
+return(list(mle = optimout$par, hessian=optimout$hessian))
+}
+#TEST FOR CORRECTNESS
+#set.seed(0)
+#x = rbeta(1000,2,4)
+#result = betamle(x)
+result = betamle(shprop)
+print(result)
+```
+
+\newpage
+
+#Question 7
+
+Consider the variable `aflin`, which is a logical indicating
+whether or not the block is owned by the director of the company.
+We can easily find the sample proportion of the blocks which
+are owned by a director:
+```{r}
+mean(blockdat$aflin)
+```
+
+If we take this data set to be a random sample from a larger collection
+of blockholders, is there strong evidence that the proportion of
+blocks owned by a director is greater than 0.05? Conduct an appropriate
+statistical hypothesis test, and report the p-value. __(10)__
+
+__Answer:__ In this case I setup the null hypothesis as $H_0 = 0.05$ and alternate as $H_1 > 0.05$. If we assume that the proportion of blocks owned by a director in the larger sample follows a binomial distribution then the sample proportion in this sample data will be an MLE estimate of the population parameter and we can assume that under the null hypothesis the population parameter follows approximately normal distribution with mean $p_0 = 0.05$ and variance $p_0(1-p_0)/n$.
+
+I then perform the Wald test and calculate the standard error under the null hypothesis and I get a test statistic value of 1.079. Our setup of the hypothesis testing is of a one-sided test and thus the p-value of the data would be $1-N(T)$, which is 0.14. Below are the results.
+
+```{r}
+#Insert your R code here
+aflin = blockdat$aflin
+#H0:
+p0 = 0.05
+phat = mean(aflin)
+var_h0 = p0*(1-p0)/length(aflin)
+se_h0 = sqrt(var_h0)
+T = (phat-p0)/se_h0
+print(T)
+p_value = 1-pnorm(T)
+print(p_value)
+```
+
+
+\newpage
+#A New Data Set
+
+We will create a new data frame here by creating one entry per ticker symbol, per year, in order to remove this redundancy.
+
+```{r}
+blockdatsub = blockdat[!duplicated(blockdat[,c(6,10)]),]
+```
+
+After this step, however, we note that there are differing number of
+years for each ticker symbol. Not all symbols have entries across the six years represented in this data set. We want to restrict to those ticker symbols with six years of data, so we take the following steps:
+
+```{r}
+sbt = split(blockdatsub, blockdatsub$Ticker)
+
+blockdatsub = 
+  blockdatsub[blockdatsub$Ticker %in% names(which(lapply(sbt,nrow) == 6)),]
+```
+
+The data frame `blockdatsub` now has 2556 rows, six rows for each of 
+426 ticker symbols. The six entries correspond to the six years represented
+in the data set. In what follows we will only consider the data from
+2001, so we will create a new data frame `blockdatsub2001`:
+
+```{r}
+blockdatsub2001 = blockdatsub[blockdatsub$irrcyear==2001,]
+```
+
+
+\newpage
+
+#Question 8
+
+Consider the sample of size 426 stored in variable `numdir` that is part of `blockdatsub2001`. You are willing to assume that this
+sample is drawn from a Poisson distribution with uknown mean $\lambda$.
+Use the available sample to create a 95% confidence interval for
+$\lambda$. __(10)__
+
+__Answer:__ MLE estimate of the poisson distribution parameter is simply the sample mean of the data and if the parameter is $\lambda$ then the variance of the estimate $\widehat \lambda$ is $\lambda/n$, which can be approximated as $\widehat \lambda/n$. The MLE follows approximately normal(given sample size is large) distribution with the estimated variance. Below shows the 95\% confidence interval.
+
+```{r}
+#Insert your R code here
+x = blockdatsub2001$numdir
+alpha = 0.05
+lambdamle = mean(x)
+lambdamlevar = lambdamle/length(x)
+lower = lambdamle - qnorm(1-alpha/2)*sqrt(lambdamlevar)
+upper = lambdamle + qnorm(1-alpha/2)*sqrt(lambdamlevar)
+print(list(mle = lambdamle,lower=lower,upper=upper))
+```
+
+\newpage
+
+#Question 9
+
+Construct a simulation experiment that tests the validity of the
+confidence interval constructed in Question 7. In other words, is
+the coverage of the procedure actually close to 95%? __(10)__
+
+__Answer:__ I perform a bootstrap method based simulation where I sample from the available data with replacement and check whether the sample $\widehat \lambda$ is within the confidence interval or not. This can provide us with a good estimate of the coverage. We can see that the coverage is around 90\%  which is not exactly upto the confidence level we expected the interval to be.
+
+```{r}
+#Insert your R code here
+
+#bootstrapping
+set.seed(0)
+bootcount = numeric(10000)
+count = 0
+for (b in 1:length((bootcount)))
+{
+   newdat = sample(x, size = length(x),replace=T)
+   samplelambda = mean(newdat)
+   if( samplelambda > lower & samplelambda < upper){
+     count = count +1
+   }
+}
+print(count/10000)
+
+```
+
+\newpage
+
+#Question 10
+
+The variables stored in columns 12, 14, 15, 16, 17, 18, and 27 are
+each a percentage of some form. Extract those columns and place them
+into a new matrix `pcts`:
+
+```{r}
+pcts = blockdatsub2001[,c(12,14,15,16,17,18,27)]
+```
+
+
+Use these seven variables and cluster the ticker symbols using
+complete linkage
+hierarchical clustering. Use Euclidean distance between the
+vectors to create the distance matrix.
+Show the resulting dendrogram. Use the
+ticker symbols as the labels on the dendrogram. __(10)__
+
+__Answer:__ I calculate the distance matrix of the 426 data points and run a complete linkage hierarchical clustering. Below is the dendogram which shows 6 major clusters among the tickers in terms of similarity based on the 7 chosen variables.
+
+```{r}
+hcout = hclust(dist(pcts),method = "complete")
+plot(hcout,labels=blockdatsub2001$Ticker,cex=0.05,sub="",xlab="")
+```
+
+
+

@@ -1,0 +1,80 @@
+---
+title: "Homework 6"
+author: "46-923, Fall 2018"
+date: "Due Tuesday, December 11 at 2:45 PM"
+output:
+  pdf_document: default
+  word_document: default
+  html_document:
+    df_print: paged
+---
+
+\large
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+You should complete this homework solely within R Markdown. You do not need to show
+any derivations that were required to complete Question 1, just implement the analysis in R.
+Question 1
+Assume that X1,X2, . . . ,Xn are iid from the Poisson($\lambda$) distribution.
+Assume you want to test $H_0$ : $\lambda$ = 4.3 versus $H_1$ : $\lambda$ < 4.3 using the Wald test. Calculate the
+p-value when the data are those found via
+x = read.table("http://www.stat.cmu.edu/~cschafer/MSCF/PoisHypTest.txt")
+\vspace{.2in}
+
+Answer: Under the $H_0$, standard error of the mean of the poisson sample is sqrt($\lambda_0$/n). T-stat for the $\hat\lambda$ is ($\hat\lambda$-$\lambda_0$)/S.E, which is -0.38.p-value for the one sided test for this T-stat is 0.3515. p-value for this sample observation is very large and under standard confidence levels the null hypothesis cannot be rejected.
+
+```{r}
+x = read.table("http://www.stat.cmu.edu/~cschafer/MSCF/PoisHypTest.txt")
+lambda_hat = mean(x$V1)
+lambda_0   = 4.3
+SE = sqrt(lambda_0/nrow(x))
+Z = (lambda_hat-lambda_0)/SE
+p_val = pnorm(Z)
+```
+Question 2
+
+The Augmented Dickey-Fuller (ADF) Test is a test utilized in time series analysis in order to assess stationarity. There is a function adf.test() in the package tseries which implements this test. Take a look at help(adf.test) for some details.
+
+a. If our objective is to see if there is strong evidence that a time series is stationary, how
+should the argument alternative be set when using adf.test()?
+
+Answer: The Null hypothesis should be the test for non-stationarity and the argument alternative should be set to "stationary" when using adf.test().
+
+
+b. Consider the following R commands. This will read in the stock data discussed in lecture,
+and then run the ADF test on the first stock in the sample. Use this as a starting point
+to write code to loop over all 1000 stocks and get the p-values for each test. How many
+of the tests have p-value less than 0.05?
+```{r}
+library(tseries)
+stocksample = read.table("stocksample.txt", header=T,
+sep="\t", comment.char="")
+adf.test(as.numeric(log(stocksample[1,5:34])), alternative="s")
+```
+c. Run the p-values found in part (b) through the Benjamini-Hochberg procedure described
+in lecture. Are any of the series found to be stationary using this approach (again using
+$\alpha$ = 0.05)? Comment on the reason(s) for any differences found.
+
+Answer: As per below runs, there were 61 of the tests having p-value less than 0.05, and 61 successes out of 1000 tests have a probability of approximately 0.06 just out of randomness without any meaningful statistical significance. When multiple repeatations of a test is performed, the overall confidence level needs to be adjusted for the multi testing and the Benjamini-Hochberg procedure does exactly this. Under this procedure only true statistically significant positive test results under 0.05 confidence level is captured and result shows that the null hypothesis of non-stationarity cannot be rejected for any of the stock sample.
+The difference again is primarily due to the fact that the p-values under the multi-testing framework is adjusted by the BH procedure to account for the random successes and remove those and keep only statistically significant results. First 61 successes can be due to chance-occurrence of sampling from many tests with a probability of success being 0.05
+
+```{r}
+library(tseries)
+stocksample = read.table("stocksample.txt", header=T,
+sep="\t", comment.char="")
+p_values =c()
+size = nrow(stocksample)
+for( i in 1:1000){
+  adf_test_results = suppressWarnings(adf.test(as.numeric(log(stocksample[i,5:34])), alternative="s"))
+  p_values[i] = adf_test_results$p.value
+}
+
+print("Number of entries with p-value less than 0.05: ")
+print(sum(p_values<0.05))
+
+print("Number of entries with Benjamini-Hochberg procedure adjusted p-value less than 0.05: ")
+print(sum(p.adjust(p_values,method = "BH")<0.05))
+
+```

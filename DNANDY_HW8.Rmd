@@ -1,0 +1,228 @@
+---
+title: "Homework 4"
+author: "46-923, Fall 2018"
+date: "Due Tuesday, November 27 at 2:45 PM"
+output:
+  pdf_document: default
+  word_document: default
+  html_document:
+    df_print: paged
+---
+
+\large
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+You should submit the Rmd file for your analysis. Name the file as YOURANDREWID_HW4.Rmd
+and submit it via Canvas. Also submit the .pdf file that is produced..
+
+\vspace{.2in}
+
+Question 1
+
+We have already seen that the log returns are not well-modelled by a normal distribution, as
+the normal distribution does not place enough probability in the tails to model the extreme
+events that can occur.
+
+Here, we will assume that the daily log returns for an equity can be modelled as being i.i.d.
+with distribution given by $\sigma$T, where T is a random variable with the t-distribution with $\nu$ degrees of freedom. The median of the distribution is assumed to be zero.
+
+a. Write an R function that takes as input a vector of values (e.g., log daily returns from
+a single equity), along with an assumed value for $\nu$, and then returns the MLE for $\sigma$ 
+along with the standard error for that estimator and a 95% confidence interval for $\sigma$.
+
+Answer: Below function takes as input a vector of values along with an assumed value for the degree of freedom parameter. Note that the log likelihood function also involves a term (-nlog($\sigma$)) which comes from the derivation of the density distribution. Also note that the MoM estimator is used as initial value. See supplemental pdf for more info on the derivations.
+
+Standard error of the estimator can be derived from the hessian which is the observed Fisher information. Square root of the hessian is the standard error. 
+
+Using the asymptotic normality property of MLE, we know that the estimator is approx. normal. Thus
+95\% confidence interval can be constructed as shown below.
+
+```{r}
+nu_t = function(x,nu){
+  # The negative of the log-likelihood.
+  negloglikelihood = function(theta,x,nu){return((-1)*sum(dt(x/theta,nu,log=T))+
+                                                   length(x)*log(theta))}
+  # Starting value is the MOM estimate.
+  thetahatmom = sqrt((nu-2)/nu) * sd(x)
+  # The optimization.
+  optimout = optim(thetahatmom, negloglikelihood,x=x,nu=nu, hessian=T, method="BFGS")
+  mle = optimout$par
+  hessian=optimout$hessian
+  se = sqrt(1/hessian[[1]])
+  z_value = qnorm((1-0.95)/2)
+  return(list(mle = mle, se=se,conf_int=list(left=mle+z_value*se,
+                                             right = mle-z_value*se)))}
+
+#example:
+x = rt(1000,4) #DoF = 4
+y = 3*x
+results = nu_t(y,4)
+results
+```
+
+
+b. Demonstrate the use of this function on some real log return data found using quantmod().
+Try at least three different equities.
+
+Answer: Ran the MLE calculation for 4 equities with DoF parameter set as 5.
+
+```{r}
+library(quantmod)
+loadSymbols(Symbols = "IBM")
+loadSymbols(Symbols = "AAPL")
+loadSymbols(Symbols = "FB")
+loadSymbols(Symbols = "GOOG")
+loadSymbols(Symbols = "GS")
+loadSymbols(Symbols = "MS")
+IBM_df = data.frame(IBM)
+IBM_df$Adjusted = IBM_df$IBM.Adjusted
+AAPL_df = data.frame(AAPL)
+AAPL_df$Adjusted = AAPL_df$AAPL.Adjusted
+GOOG_df = data.frame(GOOG)
+GOOG_df$Adjusted = GOOG_df$GOOG.Adjusted
+FB_df = data.frame(FB)
+FB_df$Adjusted = FB_df$FB.Adjusted
+GS_df = data.frame(GS)
+GS_df$Adjusted = GS_df$GS.Adjusted
+MS_df = data.frame(MS)
+MS_df$Adjusted = MS_df$MS.Adjusted
+data = list("IBM"=IBM_df,"AAPL"=AAPL_df,"GOOG"=GOOG_df,"FB"=FB_df, "GS"=GS_df, "MS"=MS_df)
+run_list = list("IBM","AAPL","GOOG")
+for( name in names(data)){
+
+  df = data[[name]]
+  df["logret"]=1
+  for( i in 2: nrow(df)){
+    df$logret[i] = log(df$Adjusted[i]/df$Adjusted[i-1])
+  }
+  if (name %in% run_list){
+  results = suppressWarnings(nu_t(df$logret[2:nrow(df)],5))
+  print("")
+  print("statistics information for :")
+  print(name)
+  show(results)
+  }
+}
+
+```
+
+\newpage
+c. Create a second function which maximizes the likelihood over different values of $\nu$, in
+addition to maximizing over $\sigma$. The function should also return the covariance matrix
+for the pair of estimated parameters. Test this on some different examples.
+
+Answer: For maximizing over Dof and the variance multiplier, I alter the log-likelihood function to accept the parameters as a vector and optimize over the parameters. For T-distribution, first and third moments are 0 (all odd moments are zero for T-distribution), and thus I use the second (variance) and fourth moment(Kurtosis) to calculate the MoM estimator for the two parameters and use that as starting point.
+
+I also run the function for 3 equities and show the corresponding results.
+
+```{r}
+library(DescTools)
+t_mle = function(x){
+  # The negative of the log-likelihood.
+  negloglikelihood = function(pars,x){return((-1)*sum(dt(x/pars[1],pars[2],log=T))+
+                                                   length(x)*log(pars[1]))}
+  # Starting value is the MOM estimate.
+  K = Kurt(x)
+  nu = 4 + 6/K #MoM using 4-th moment, excess Kurtosis
+  parsinit = c(sqrt((nu-2)/nu) * sd(x),nu)
+  thetahatmom = sqrt((nu-2)/nu) * sd(x)
+  # The optimization.
+  optimout = optim(parsinit, negloglikelihood,x=x, hessian=T, method="BFGS")
+  mle = optimout$par
+  hessian=optimout$hessian
+  return(list(mle=optimout$par,cov=solve(optimout$hessian)))
+}
+#example:
+x = rt(10000,8)
+y = 3*x
+results = t_mle(y)
+results
+
+#Run for stocks
+data = list("IBM"=IBM_df,"AAPL"=AAPL_df,"GOOG"=GOOG_df,"FB"=FB_df, "GS"=GS_df, "MS"=MS_df)
+run_list = list("FB","GS","MS")
+for( name in names(data)){
+
+  df = data[[name]]
+  df["logret"]=1
+  for( i in 2: nrow(df)){
+    df$logret[i] = log(df$Adjusted[i]/df$Adjusted[i-1])
+  }
+  if (name %in% run_list){
+  results = suppressWarnings(t_mle(df$logret[2:nrow(df)]))
+  print("")
+  print("statistics information for :")
+  print(name)
+  show(results)
+  }
+}
+
+```
+
+
+\newpage
+Question 2
+
+Suppose that X is binomial(n, p). The MLE for p is, not surprisingly, the sample proportion
+X/n. (You do not need to prove this.)
+
+d. Write a simulation procedure that tests the validity of the confidence interval found
+in part (c). Is the confidence interval an adequate approximation when n = 10 and
+p = 0.10?
+
+Answer: Below writes a simulation for a grid of values of n,p and calculates p_mle and odd_mle. The simulation is repeated many times for one combination of n,p and I check how many of the simulations satisfies the confidence interval derived in part (c) and look at the fraction. For $\alpha$ = 0.05, I expect the odd_mle to stay within the confidence interval 95% of the time and we can see that majority of the cases that is true, but there are certain combinations of n,p where this confidence interval bound is not met very well.
+
+
+
+```{r}
+alpha = 0.05 # 95% confidence interval
+for(n in list(10,20,30,50)){
+  for(p in list(0.1,0.3,0.5,0.7,0.9)){
+    count =0
+    for(i in 1:100000){
+    sample = rbinom(1,n,p)
+    p_mle = sample/n
+    odd_mle = p_mle/(1-p_mle)
+    bounds = qbinom(c(alpha/2,1-alpha/2),n,p)
+    low_bound = bounds[1]/(n-bounds[1])      #formula derived in supplemental PDF
+    up_bound = bounds[2]/(n-bounds[2])
+    
+    if(odd_mle>=low_bound & odd_mle <=up_bound){count = count+1}
+
+    }
+    print("Simulating for combination (n,p) :")
+    print(n)
+    print(p)
+    print(count/100000)
+  }
+}
+
+```
+We can see that for n=10, p=0.1, the simulation shows that the confidence interval bound at 95\%, 99\% confidence level is not an adequate approximation, whereas the interval is adequate for 90\% confidence level. I believe such discontinuity in adequacy is coming due to the distribution of X and thus odd_mle is approximated in a discrete fashion using binomial distribution, due to which confidence interval bounds can take discrete values and cannot efficiently capture the confidence levels.
+
+for n=10, p=0.1, the CI bounds have large inadequacy with respect to the amount of probability within those bounds due to discreteness and thus I think this confidence interval is not an adequate approximation.
+
+```{r}
+for (alpha in list(0.05,0.01,0.1)){
+n=10
+p=0.1
+    count =0
+    for(i in 1:100000){
+    sample = rbinom(1,n,p)
+    p_mle = sample/n
+    odd_mle = p_mle/(1-p_mle)
+    bounds = qbinom(c(alpha/2,1-alpha/2),n,p)
+    low_bound = bounds[1]/(n-bounds[1])      #formula derived in supplemental PDF
+    up_bound = bounds[2]/(n-bounds[2])
+    
+    if(odd_mle>=low_bound & odd_mle <=up_bound){count = count+1}
+
+    }
+    print("confidence level:")
+    print(1-alpha)
+    print(count/100000)
+}
+```
