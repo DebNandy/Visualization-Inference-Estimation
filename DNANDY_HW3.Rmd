@@ -1,0 +1,141 @@
+---
+title: "Homework 3"
+author: "46-921, Fall 2018"
+date: "Due Wednesday, September 19helphelp at 1:00 PM"
+output: pdf_document
+---
+
+\large
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+You should submit the Rmd file with your answers in the
+appropriate spaces. Rename the file as `YOURANDREWID_HW2.Rmd`
+and submit it via Canvas. Also submit the `.pdf` file that
+is produced.
+
+Of course, any code that is written should be tested. In each
+case you are requested to include some __simple__ examples showing that
+your code works. Think about how your example(s) can illustrate 
+the range of possibilities that the code could face.
+
+\vspace{.2in}
+
+1. Go to the following website:
+https://www.quandl.com/data/AAII/AAII_SENTIMENT-AAII-Investor-Sentiment-Data
+and download the data set. (Note that there are multiple ways of doing this, including using
+the "Download" button in the upper right of the screen.) Read these data into R and create
+an appropriate data frame. Be sure that each column is in an appropriate form (date, factor,
+character, etc.) When reading in the file, do not make any changes to the data file
+itself. Resolve any issues using appropriate R commands.
+
+```{r}
+df2 = read.table("AAII-AAII_SENTIMENT.csv", header=T, sep = ",", quote ="")
+df2$Date = as.Date(as.character(df2$Date))
+```
+
+2. Create a figure that shows how the proportion of investors who are bullish/neutral/bearish
+changes over the years of the data set. Do this via a stacked bar chart similar to the
+one seen on slide 25 in Part 5 of the lecture notes
+
+```{r}
+df2$YM = format(df2$Date,"%Y%m")
+df2$Q  = paste(quarters.Date(df2$Date),format(df2$Date,"%Y"),sep = "-")
+df3 = df2[c("Date", "Bullish", "Neutral", "Bearish", "YM", "Q")]
+library(dplyr)
+df3 = filter(df3,!is.na(Bullish) & !is.na(Neutral) & !is.na(Bearish))
+library(reshape2)
+df4 = melt(data = df3, id = c("Date", "YM", "Q"))
+names(df4)[4] = "SentimentType"
+names(df4)[5] = "Fraction"
+
+library(ggplot2)
+baseplot = ggplot(data = df4, mapping = aes(x=Date, y=Fraction))
+baseplot + geom_bar(stat="identity",aes(fill=factor(df4$SentimentType))) +
+  labs(x="Survey Date", y="Investor Proportion",fill="Sentiment Type")
+```
+3. A colleague wonders if there could be a seasonal effect, i.e., that there are natural
+variations in investor sentiment over the course of a year that tend to repeat from year
+to year. Create a plot that explores whether or not there is evidence for this. Be sure to
+include a description of your conclusion. Do not perform any "formal" analyses.
+
+Answer: I have grouped the daily data into quarterly data for each year to have a little less granular information in the search of pattern year-over-year. I average out the sentiment proportion during the group-by. 
+Below are the plots of the investor proportion by sentiment plotted against quarterly time scale. This can better allow us to visually find if there is any correlation/pattern between investor sentiment year-over-year.
+
+After the plot analysis, there seems to be some periodic pattern in the neutral sentiment with a period of approx. 7-8 years and the quarters of interest can also be located easily.
+
+There is no clear identification of patter in the bullish or bearish sentiment, just by looking at the plots.
+```{r}
+library(dplyr)
+df5 = filter(df4,SentimentType=="Bullish" & !is.na(Fraction))
+df5 = aggregate(df5[c("Fraction")],by=df5[c("Q","SentimentType")],FUN = mean)
+
+df6 = filter(df4,SentimentType=="Neutral" & !is.na(Fraction))
+df6 = aggregate(df6[c("Fraction")],by=df6[c("Q","SentimentType")],FUN = mean)
+
+df7 = filter(df4,SentimentType=="Bearish" & !is.na(Fraction))
+df7 = aggregate(df7[c("Fraction")],by=df7[c("Q","SentimentType")],FUN = mean)
+library(ggplot2)
+ggplot(data = df5, mapping = aes(x=Q, y=Fraction)) +
+  geom_bar(stat="identity",color = "Blue") +
+  labs(x="Survey Quarter", y="Investor Proportion",
+       title="Bullish Sentiment Quarterly Proportion")+
+  theme(axis.text.x=element_blank())
+
+ggplot(data = df6, mapping = aes(x=Q, y=Fraction)) +
+  geom_bar(stat="identity",color="Green") +
+  labs(x="Survey Quarter", y="Investor Proportion",
+       title="Neutral Sentiment Quarterly Proportion")+
+  theme(axis.text.x=element_blank())
+
+ggplot(data = df7, mapping = aes(x=Q, y=Fraction),) +
+  geom_bar(stat="identity",color = "Red") +
+  labs(x="Survey Quarter", y="Investor Proportion",
+       title="Bearish Sentiment Quarterly Proportion")+
+  theme(axis.text.x=element_blank())
+```
+
+4. Do you think that investors are generally "correct" in their sentiments? In other words,
+does their opinion regarding the future of the market predict where the market will be
+over the following six months? Create a plot that explores this. Be sure to include a
+description of your conclusion. Do not perform any "formal" analyses..
+
+Answer: The idea I am trying to apply in making an intuitive decision of the above question is by plotting the 6-month lagged quarterly percent return along with plotting the majority sentiment in a particular quarter. Comparing the two plots side by side can tell us which sentiment was the majority in a particular quarter and whether that sentiment materialized in the market performance after 6 months.
+
+The quarterly return plot shows mostly a scatterred information and not any pattern which can be correlated with the market sentiment. More formal computations can be performed to validate this hypothesis but just by looking at the plot, it doesn't look like investors sentiment have any impact on the returns.
+
+```{r}
+library(dplyr)
+df8 = aggregate(df3[c("Bullish", "Neutral", "Bearish")],by=df3[c("Q")],FUN=mean)
+df8$Majority = 0
+for (i in 1:nrow(df8))
+    df8[i,5] = colnames(df8[which.max(df8[i,2:4])+1])
+for (i in 1:nrow(df8)){
+    if(df8[i,5] == "Bullish") df8[i,5] = 1;
+    if(df8[i,5] == "Neutral") df8[i,5] = 0;
+    if(df8[i,5] == "Bearish") df8[i,5] = -1;
+}
+library(DescTools)
+df9 = df2
+df9$ShiftDate = df9$Date
+df9$ShiftDate = AddMonths(df9$ShiftDate,-6)
+df9$Return = 0
+for (i in 2:nrow(df9))
+    df9[i,17] = (df9[i+1,13]-df9[i,13])*100/df9[i,13]
+df9$Q  = paste(quarters.Date(df9$ShiftDate),format(df9$ShiftDate,"%Y"),
+               sep = "-")
+library(dplyr)
+df9 = filter(df9, !is.na("Return"))
+df9 = aggregate(df9[c("Return")],by=df9[c("Q")], FUN=sum)
+library(ggplot2)
+ #Plot the Majority Sentiment
+ baseplot = ggplot(data = df8, mapping = aes(x=Q, y=Majority))
+ baseplot+geom_point()+
+  theme(axis.text.x=element_blank())
+ #Plot the 6month lagged return
+ baseplot = ggplot(data = df9, mapping = aes(x=Q, y=Return))
+ baseplot+geom_point()+
+  theme(axis.text.x=element_blank())
+```

@@ -1,0 +1,122 @@
+---
+title: "Homework 6"
+author: "Written by Debajyoti Nandy"
+date: "Due Wednesday, October 10 at 1:00 PM"
+output: pdf_document
+---
+
+\large
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Part 1:
+Suppose we are interested in building a training set of features that we hope could be useful in a prediction problem. In particular, the idea we want to explore is the use of the percentiles of the daily closing stock price over the past n weeks.
+
+In this part, we write the CDF, Inverse CDF generator for the Kernel density estimate distribution. I also use the quantmod library to sample 100 tickers from NYSE. I create the dataframe with corresponding columns that need to be filled and write a for loop to go through each of the ticker and populate the percentiles implied from the Kernel density distribution.
+
+```{r}
+n = 100  #approx. 2 months
+
+library(quantmod)
+kCDF = function(x, res=100, ...){
+  holddens = density(x,...)
+  interpdens = approxfun(holddens$x, holddens$y,yleft=0, yright=0)
+  xseq = seq(min(holddens$x),max(holddens$x),length=res)
+  holdout = numeric(res)
+  for(i in 1:res){
+    holdout[i] = integrate(interpdens, lower=min(holddens$x),upper=xseq[i], stop.on.error=FALSE)$value
+  }
+  CDF = approxfun(xseq, holdout, yleft=0, yright=1)
+  invCDF = approxfun(holdout, xseq, yleft=NA, yright=NA)
+
+list(CDF=CDF, invCDF=invCDF)
+}
+
+NYSE_Symbols = stockSymbols(exchange = c("NYSE"))
+Symbols      = NYSE_Symbols$Symbol
+Samples      = sample(Symbols,100) 
+Data         = data.frame(Samples)
+names(Data) = "TickerSymbol"
+Data$p10th = 0
+Data$p20th = 0
+Data$p30th = 0
+Data$p40th = 0
+Data$p50th = 0
+Data$p60th = 0
+Data$p70th = 0
+Data$p80th = 0
+Data$p90th = 0
+
+for(i in 1:100){
+       symbol = Samples[i]
+       tickerinfo = suppressWarnings(
+       expr = try(getSymbols(symbol,from=Sys.Date()-n*7,to=Sys.Date(),
+auto.assign=FALSE),silent = TRUE)
+       )
+       if(! ("try-error" %in% class(tickerinfo) ) )
+       {
+         Data.TickerSymbol = symbol
+         dailyprice = data.frame(Ad(tickerinfo))
+         dailyprice = na.omit(dailyprice)
+         CDFInfo = lapply(dailyprice,kCDF,bw="SJ")
+       
+         for(j in 1:9 ){
+             quantile = CDFInfo[[1]]$invCDF(j/10)
+       if(j==1)
+        Data$p10th[i] = round(quantile,3)
+       if(j==2)
+        Data$p20th[i] = round(quantile,3)
+       if(j==3)
+        Data$p30th[i] = round(quantile,3)
+       if(j==4)
+        Data$p40th[i] = round(quantile,3)
+       if(j==5)
+        Data$p50th[i] = round(quantile,3)
+       if(j==6)
+        Data$p60th[i] = round(quantile,3)
+       if(j==7)
+        Data$p70th[i] = round(quantile,3)
+       if(j==8)
+        Data$p80th[i] = round(quantile,3)
+       if(j==9)
+        Data$p90th[i] = round(quantile,3)
+       }
+       }
+}
+
+```
+
+The dataframe \"Data\" calculated above is a 100 row by 10 column dataframe with expected information.
+
+
+# Part 2:
+Read in the options sample that I presented in lecture. (Read in the sample I created, do not generate your own.) Create a plot that compares (1) the difference between the Black-Scholes price and the ask price with (2) the time to expiration. Smooth the relationship using local linear regression, and show this on the plot. Is there evidence of a relationship between these two quantities? Can you guess as to why you are seeing this?
+
+Below plot shows the scatter comparison among the difference between the Black-Scholes price and the ask price with the time to expiration
+```{r}
+options = read.table("optionssample09302017.txt", sep=",", header = T)
+options$pricediff = abs(options$bsval - options$ask)
+
+library(ggplot2)
+ggplot(data = options, mapping = aes(x=options$timetoexpiry, y=options$pricediff)) + geom_point(size=1,color="blue") + labs(x="Time to expiry", y="B/S price - ask price")
+
+```
+and below is the correspond plot which shows the smoothened relationship calculated by local linear regression.
+```{r}
+ggplot(data = options, mapping = aes(x=options$timetoexpiry, y=options$pricediff)) + geom_point(size=1,color="blue") + geom_smooth(method="loess", method.args = list(degree=1))+ labs(x="Time to expiry", y="B/S price - ask price")
+
+```
+Although it seems like the difference between the Black-Scholes price and the ask price increases as time to expiry increases, it isn't very much clear due to the small difference. So I convert the differences to log-scale to stretch the differences.
+
+```{r}
+options$logpricediff = log(abs(options$bsval - options$ask))
+ggplot(data = options, mapping = aes(x=options$timetoexpiry, y=options$logpricediff)) + geom_point(size=1,color="blue") + geom_smooth(method="loess", method.args = list(degree=1))+ labs(x="Time to expiry", y="B/S price - ask price")
+
+```
+
+This clearly shows that the log of the price difference and thus the price difference increase with time to expiry of the option.
+
+
+The reason behind this deviation from the Black-Scholes modeled price comes from the violation of constant volatility assumption. In the pricing model, volatility is assumed to stay constant whereas with increasing time to expiry, there is larger chance of increased volatility in the stock price and thus more uncertainty in the option payoff would drive the price up in real markets causing the above observed difference in the price.

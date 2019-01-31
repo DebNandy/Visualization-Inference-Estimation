@@ -1,0 +1,229 @@
+---
+title: "Homework 5"
+author: "Written by Debajyoti Nandy"
+date: "Due Wednesday, October 3 at 1:00 PM"
+output: pdf_document
+---
+
+\large
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Describe any annual/seasonal fluctuations in the nature of the relationships among these rates that you can find. For example, look at the slope of the regression line between a pair of rates; is it different in January than it is in July?
+
+You are to present analyses that explore this question. You have two tools at your disposal: visualization and simple linear regression.
+Your response should include at least five plots, and there should be at least three regression models fit.
+Your final analysis should involve at least three different rates.
+
+This report tries to answer the above question and analyzes the relation between 2 pairs of rates. FedFunds with 3-month Treasury Bill and FedFunds with Prime Rate. We expect a strong correlation between the pairs and this report also analyzes any annual fluctuation in this relation.
+
+
+# Section 1
+In this section we extract the data and filter null data or extreme data points such as removing 3m T-bill rate, Prime rate which are less than -100. (Although we expect those to be positive)
+```{r}
+FullData = read.csv("data.csv", header = TRUE, sep = ",")
+Sample1 = FullData[c('time_period','federal_funds', 'X3_month_treasury_bill')]
+Sample2 = FullData[c('time_period','federal_funds', 'prime_rate')]
+library(dplyr)
+Sample1 = filter(Sample1, !is.na(Sample1$X3_month_treasury_bill) )
+Sample1 = filter(Sample1, Sample1$X3_month_treasury_bill>-100)
+Sample1$Date = as.Date(as.character(Sample1$time_period))
+Sample1$Q    = quarters.Date(Sample1$Date)
+Sample1Q1 = filter(Sample1, Sample1$Q == 'Q1')
+Sample1Q2 = filter(Sample1, Sample1$Q == 'Q2')
+Sample1Q3 = filter(Sample1, Sample1$Q == 'Q3')
+Sample1Q4 = filter(Sample1, Sample1$Q == 'Q4')
+
+Sample2 = filter(Sample2, !is.na(Sample2$prime_rate) )
+Sample2 = filter(Sample2, Sample2$prime_rate>-100)
+Sample2$Date = as.Date(as.character(Sample2$time_period))
+Sample2$Q    = quarters.Date(Sample2$Date)
+Sample2Q1 = filter(Sample2, Sample2$Q == 'Q1')
+Sample2Q2 = filter(Sample2, Sample2$Q == 'Q2')
+Sample2Q3 = filter(Sample2, Sample2$Q == 'Q3')
+Sample2Q4 = filter(Sample2, Sample2$Q == 'Q4')
+```
+\newpage
+#Section 2A
+In this section we primarily look at the pair of rates, Fed Funds rate and 3m Treasury Bill. We plot a scatter plot below which shows a strong positive correlation between the rates. We then go ahead and perform a linear regression fit with 3m T-bill rate as the response(y) and FedFunds rate as the predictor(x). We also summarize the results of the linear fit and look at the residual vs fitted values  plot to better understand the validity of the fit.
+
+```{r}
+library(ggplot2)
+baseplot = ggplot(data = Sample1, mapping = aes(x=Sample1$federal_funds, y=Sample1$X3_month_treasury_bill))
+baseplot + geom_point(size=0.5,color="blue") + labs(x="Fed Funds", y="3m T-Bill", title= "3m T-Bill vs FedFunds")
+
+holdout = lm(Sample1$X3_month_treasury_bill ~ Sample1$federal_funds)
+summary(holdout)
+```
+
+
+We can observe that the metrics of the fit are very good. Standard error for this fit is very small, t-stat and R^2^ values are large. Thus under the assumption of a linear relation between the rates, this linear fit is very significant. Point estimate of the slope of this linear relation is 0.842.
+
+We look at the residuals vs fitted values plot to better understand the goodness of the fit.
+
+```{r fig.height=3.2, fig.width=5, fig.align= 'center'}
+library(ggplot2)
+residualplot = ggplot(data = holdout, mapping = aes(x=holdout$fitted.values,
+                                                    y=holdout$residuals))
+residualplot + geom_point(size=.2,color="black") + 
+  labs(x="Fitted Values",y="Residuals",title= "Residual Plot")
+```
+
+The residual vs fitted values plot shows majority of the residuals between -2.5 and 2.5 with spread around 0, but there are also many residual points which are very large and outside the band around 0. These residual points also correspond to the larger values of the fitted response. This shows that for large values of fedfunds rate and 3m t-bill rate, the linear relation doesn't hold very well.
+
+As we can see in the below plot with the linear fit line super-imposed, the datapoints corresponding to large values fedfunds rate are far from the least squares linear fit.
+ 
+
+```{r}
+baseplot = ggplot(data = Sample1, mapping = aes(x=Sample1$federal_funds, y=Sample1$X3_month_treasury_bill))
+baseplot + geom_point(size=0.5,color="blue") + labs(x="Fed Funds", y="3m T-Bill", title= "3m T-Bill vs FedFunds") +
+  geom_smooth(method="lm")
+```
+
+\newpage
+#Section 3A
+In this section we explore whether there is any effect of seasonality to the linear relationship and the least squares fit between the two rates. We divide the dataset based on quarters and perform the least squares fit for each of the quarter data.
+
+##SubSection : Quarter 1
+```{r fig.height=3.5, fig.width=5, fig.align= 'center'}
+holdoutQ1 = lm(Sample1Q1$X3_month_treasury_bill ~ Sample1Q1$federal_funds)
+summary(holdoutQ1)
+baseplotQ1 = ggplot(data = Sample1Q1, mapping = aes(x=Sample1Q1$federal_funds, y=Sample1Q1$X3_month_treasury_bill))
+baseplotQ1 + geom_point(size=0.5,color="blue") + labs(x="Fed Funds", y="3m T-Bill", title= "Q1 3m T-Bill vs FedFunds") +
+  geom_smooth(method="lm")
+```
+
+##SubSection : Quarter 2
+```{r fig.height=3.5, fig.width=5, fig.align= 'center'}
+holdoutQ2 = lm(Sample1Q2$X3_month_treasury_bill ~ Sample1Q2$federal_funds)
+summary(holdoutQ2)
+baseplotQ2 = ggplot(data = Sample1Q2, mapping = aes(x=Sample1Q2$federal_funds, y=Sample1Q2$X3_month_treasury_bill))
+baseplotQ2 + geom_point(size=0.5,color="blue") + labs(x="Fed Funds", y="3m T-Bill", title= "Q2 3m T-Bill vs FedFunds") +
+  geom_smooth(method="lm")
+```
+\newpage
+
+##SubSection : Quarter 3
+```{r fig.height=3.5, fig.width=5, fig.align= 'center'}
+holdoutQ3 = lm(Sample1Q3$X3_month_treasury_bill ~ Sample1Q3$federal_funds)
+summary(holdoutQ3)
+baseplotQ3 = ggplot(data = Sample1Q3, mapping = aes(x=Sample1Q3$federal_funds, y=Sample1Q3$X3_month_treasury_bill))
+baseplotQ3 + geom_point(size=0.5,color="blue") + labs(x="Fed Funds", y="3m T-Bill", title= "Q3 3m T-Bill vs FedFunds") +
+  geom_smooth(method="lm")
+```
+\newpage
+
+##SubSection : Quarter 4
+```{r fig.height=3.5, fig.width=5, fig.align= 'center'}
+holdoutQ4 = lm(Sample1Q4$X3_month_treasury_bill ~ Sample1Q4$federal_funds)
+summary(holdoutQ4)
+baseplotQ4 = ggplot(data = Sample1Q4, mapping = aes(x=Sample1Q4$federal_funds, y=Sample1Q4$X3_month_treasury_bill))
+baseplotQ4 + geom_point(size=0.5,color="blue") + labs(x="Fed Funds", y="3m T-Bill", title= "Q4 3m T-Bill vs FedFunds") +
+  geom_smooth(method="lm")
+```
+
+#Section 4A: Summary Comparison
+
+From the above least squares fit of the Quarterly data, we can observe that point estimate of the slope for the Quarter-1(Jan-Mar) is highest with the value of 0.8755 compares to all the other quarters where the value of the slope ranges between 0.8237-0.837. Standard error is almost the same between all the fit and is around 0.002 which is almost double of the combined fit which is expected (data size is roughly reduced by 1/4 th so we expect the standard error to double). 
+
+This shows that under the linear correlation assumption between the rates, the correlation is better during the Quarter 1 and the slope is higher (and relatively nearer to 1) compared to other quarters. This also points out some degree of seasonality playing into the correlation between these rates.
+
+
+
+
+\newpage
+#Section 2B
+In this section we primarily look at the pair of rates, Fed Funds rate and Prime. We plot a scatter plot below which shows a strong positive correlation between the rates. We then go ahead and perform a linear regression fit with Prime rate as the response(y) and FedFunds rate as the predictor(x). We also summarize the results of the linear fit and look at the residual vs fitted values  plot to better understand the validity of the fit.
+
+```{r}
+library(ggplot2)
+baseplot = ggplot(data = Sample2, mapping = aes(x=Sample2$federal_funds, y=Sample2$prime_rate))
+baseplot + geom_point(size=0.5,color="blue") + labs(x="Fed Funds", y="Prime Rate", title= "Prime Rate vs FedFunds")
+
+holdout = lm(Sample2$prime_rate ~ Sample2$federal_funds)
+summary(holdout)
+```
+
+
+We can observe that the metrics of the fit are similarly good. Standard error for this fit is very small, t-stat and R^2^ values are large. But the metrics of the fit is not as good as the fit between 3m T-Bill and Fed Funds rate. Although the point estimate of the slope of this linear relation is 0.871 which shows better linear relation than the previous fit.
+
+We look at the residuals vs fitted values plot to better understand the goodness of the fit.
+
+```{r fig.height=3.2, fig.width=5, fig.align= 'center'}
+library(ggplot2)
+residualplot = ggplot(data = holdout, mapping = aes(x=holdout$fitted.values,
+                                                    y=holdout$residuals))
+residualplot + geom_point(size=.2,color="black") + 
+  labs(x="Fitted Values",y="Residuals",title= "Residual Plot")
+```
+
+In this residual vs fitted values plot, we can see almost equal split of residuals around the band of 0 and outside the band.There are many residual points outside the band around 0 and also the residual plot doesn't look like a scatter around 0 but rather some kind of a step pattern is observed between the residuals. The pattern between the residuals are not only present for large values of fitted values, but rather present throughout the range of fitted values.This tells us that there can be some other kind of relation between the repsonse and predictor and not necessarily a linear one.
+
+As we can see in the below plot with the linear fit line super-imposed, many data points have large residual error.
+
+```{r}
+baseplot = ggplot(data = Sample2, mapping = aes(x=Sample2$federal_funds, y=Sample2$prime_rate))
+baseplot + geom_point(size=0.5,color="blue") + labs(x="Fed Funds", y="Prime Rate", title= "Prime Rate vs FedFunds") +
+  geom_smooth(method="lm")
+```
+
+\newpage
+#Section 3B
+In this section we explore whether there is any effect of seasonality to the linear relationship and the least squares fit between the two rates. We divide the dataset based on quarters and perform the least squares fit for each of the quarter data.
+
+##SubSection : Quarter 1
+```{r fig.height=3.5, fig.width=5, fig.align= 'center'}
+holdoutQ1 = lm(Sample2Q1$prime_rate ~ Sample2Q1$federal_funds)
+summary(holdoutQ1)
+baseplotQ1 = ggplot(data = Sample2Q1, mapping = aes(x=Sample2Q1$federal_funds, y=Sample2Q1$prime_rate))
+baseplotQ1 + geom_point(size=0.5,color="blue") + labs(x="Fed Funds", y="Prime Rate", title= "Q1 Prime Rate vs FedFunds") +
+  geom_smooth(method="lm")
+```
+
+##SubSection : Quarter 2
+```{r fig.height=3.5, fig.width=5, fig.align= 'center'}
+holdoutQ2 = lm(Sample2Q2$prime_rate ~ Sample2Q2$federal_funds)
+summary(holdoutQ2)
+baseplotQ2 = ggplot(data = Sample2Q2, mapping = aes(x=Sample2Q2$federal_funds, y=Sample2Q2$prime_rate))
+baseplotQ2 + geom_point(size=0.5,color="blue") + labs(x="Fed Funds", y="Prime Rate", title= "Q2 Prime Rate vs FedFunds") +
+  geom_smooth(method="lm")
+```
+\newpage
+
+##SubSection : Quarter 3
+```{r fig.height=3.5, fig.width=5, fig.align= 'center'}
+holdoutQ3 = lm(Sample2Q3$prime_rate ~ Sample2Q3$federal_funds)
+summary(holdoutQ3)
+baseplotQ3 = ggplot(data = Sample2Q3, mapping = aes(x=Sample2Q3$federal_funds, y=Sample2Q3$prime_rate))
+baseplotQ3 + geom_point(size=0.5,color="blue") + labs(x="Fed Funds", y="Prime Rate", title= "Q3 Prime Rate vs FedFunds") +
+  geom_smooth(method="lm")
+```
+\newpage
+
+##SubSection : Quarter 4
+```{r fig.height=3.5, fig.width=5, fig.align= 'center'}
+holdoutQ4 = lm(Sample2Q4$prime_rate ~ Sample2Q4$federal_funds)
+summary(holdoutQ4)
+baseplotQ4 = ggplot(data = Sample2Q4, mapping = aes(x=Sample2Q4$federal_funds, y=Sample2Q4$prime_rate))
+baseplotQ4 + geom_point(size=0.5,color="blue") + labs(x="Fed Funds", y="Prime Rate", title= "Q4 Prime Rate vs FedFunds") +
+  geom_smooth(method="lm")
+```
+
+
+#Section 4B: Summary Comparison
+
+From the above least squares fit of the Quarterly data, we can observe similar large residual errors throughout which shows some other factor also controls the prime rate and there isn't necessarily a linear relation between the two factors.
+
+Even then, under the assumption of a linear relation, we can see that the point estimate of the slope for the Quarterly datasets are not significantly different and all of the point estimates range between 0.86 and 0.87 which is also the estimate of the combined dataset.
+
+This shows that the seasonal effect on the linearlity relation between prime rate and fed funds rate is not significantly present as suggested by the data analysis.
+
+#Section 5: Conclusion
+
+In this report we analyzed two pairs of interest rates namely, FedFunds vs 3m T-Bill and FedFunds vs PrimeRate. We looked into the validity of linear relationship between the corresponding rates and we also divided the dataset into quarterly data to identify any impact of seasonality to the linear relationship.
+
+We observed by looking at the residual plots and least squares fit metrics that there seems to be a strong linear relation between FedFunds and 3m T-Bill rate. We also observed from the quarterly least squares fit that this linear relationship is particularly stronger during the quarter 1 with higher value of the point estimate of the slope then other quarter during the year. This shows some significance of the seasonal impact to the linear relationship for this pair of rates.
+
+Based on the residual plots and least squares fit metric between FedFunds and Prime rate, we observed not a very strong linear relation as the residual plot was not necessarily scattered around 0 and many large residual errors were observed. We also didn't find much evidence of impact due to seasonality to the linear fit as all the quarterly least squares fit were similar and not significantly different from each other. So we couldn't find much evidence about seasonality from the data for the FedFunds vs Prime Rate pair.

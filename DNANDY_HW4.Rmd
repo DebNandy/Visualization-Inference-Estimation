@@ -1,0 +1,97 @@
+---
+title: "Homework 4"
+author: "46-921, Fall 2018"
+date: "Due Wednesday, September 26helphelp at 1:00 PM"
+output: pdf_document
+---
+
+\large
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+You should submit the Rmd file with your answers in the
+appropriate spaces. Rename the file as `YOURANDREWID_HW4.Rmd`
+and submit it via Canvas. Also submit the `.pdf` file that
+is produced.
+
+Whenever you are asked to create a plot, unless the specific form is stated,
+you have the flexibility to use your judgement to choose the plot you feel is
+most appropriate. I expect that you will take steps to make the plot clean and
+readable.
+
+I am assuming at this point you know how to appropriately specify R commands within this Markdown file, i.e., using the "triple quotation marks."
+
+This exercise is based on data that appeared in the November 9, 1988 edition of the Wall Street Journal. The example was originally used in Siegel (1997), but was also used in
+Sheather (2009). To quote Siegel:
+
+US Treasury bonds are among the least risky investments, in terms of the likelihood of your receiving the promised payments. In addition to the primary market auctions by the Treasury, there is an active secondary market in which all outstanding issues can be traded. You would expect to see an increasing relationship between the coupon of the bond, which indicates the size of its periodic payment (twice a year), and the current selling price. The . . . data set of coupons and bid prices [are] for US Treasury bonds maturing between 1994 and 1998 . . . The bid prices are listed per 'face value' of \$100 to be paid at maturity. Half of the coupon rate is paid every six months. For example, the first one listed pays $3.50 (half of the 7% coupon
+rate) every six months until maturity, at which time it pays an additional $100.
+
+The data file can be found at http://www.stat.cmu.edu/~cschafer/MSCF/bonds.txt.
+Do each of the following. We will treat "Bid Price" as the response and "Coupon Rate" as
+the predictor.
+
+\vspace{.2in}
+
+1. Create a scatter plot of the response versus the coupon rate. Comment on the form.
+
+Answer: Below is the scatter plot of the response versus coupon rate data. By looking at the datapoints, there seems to be a linear relationship between Bid price and Coupon rate for coupon rate beyond 6.5%. For coupon rate between 2.5% and 5%, there seems to be a constant bid price. Except for these 3 data points, the overall data shows linear relationship.  
+```{r}
+data = read.delim("data.txt")
+library(ggplot2)
+baseplot = ggplot(data = data, mapping = aes(x=CouponRate, y=BidPrice))
+baseplot + geom_point(size=1.5,color="blue") + labs(x="Coupon Rate", y="Bid Price",
+title= "Plot of Bid Price vs Coupon Rate")
+```
+
+2. Fit a simple linear regression model to the data. Show the output from R, including the table of parameters and their standard errors. This information is found in R using the function lm(). For instance, to regress y on x, use
+holdout = lm(y ~ x)
+(That is a "tilde"" between the y and the x.) The command summary(holdout) shows all of the relevant information.
+
+Answer: Below code performs the linear regression fit and shows the summary of the output
+```{r}
+holdout = lm(data$CouponRate ~ data$BidPrice)
+summary(holdout)
+```
+
+3. Construct the plot of residuals versus fitted values and comment on its form. The residuals can be obtained from holdout\$residuals and the fitted values from
+holdout\$fitted.values.
+
+Answer: The residual plot shows most of the residuals between -1 and 1 centered around 0, but only 3 data points are showing behaviour of outlier with residuals in the range of (-4,-3)
+```{r}
+library(ggplot2)
+residualplot = ggplot(data = holdout, mapping = aes(x=holdout$fitted.values,
+                                                    y=holdout$residuals))
+residualplot + geom_point(size=1.5,color="blue") + 
+  labs(x="Fitted Values",y="Residuals",title= "Residual Plot")
+```
+
+\newpage
+4. Construct a 95% confidence interval for $\beta_1$ based on this initial model. Do you trust this confidence interval?
+
+Answer: From the summary of the holdout which is the linear regression result, we can see the point estimate for $\beta_1$ is 0.24515 and standard error in the estimate is 0.02453. We can approximate the 95% confidence interval as 2-standard deviation interval around the estimate. Thus the 95% confidence interval for $\beta_1$ is 0.24515 $\pm$ 0.04906. Looking at the residual plot and the scatter plot, we can characterize the 3 data points as outliers and we should fit another linear regression by omitting those 3 data points and observe the fit of the coefficients and that will be a better estimate.
+
+Below revised linear fit shows the summary of the linear fit and residual plot after removing the 3 data points. The 95% confidence interval for $\beta_1$ in this fit is 0.203811 $\pm$ 0.009124 which is much tighter and significant than the prior confidence interval.
+```{r}
+library(dplyr)
+data_filtered = filter(data, data$CouponRate>5.0)
+holdout2 = lm(data_filtered$CouponRate ~ data_filtered$BidPrice)
+summary(holdout2)
+
+library(ggplot2)
+residualplot2 = ggplot(data = holdout2, mapping = aes(x=holdout2$fitted.values,
+                                                    y=holdout2$residuals))
+residualplot2 + geom_point(size=1.5,color="blue") + 
+  labs(x="Fitted Values",y="Residuals",title= "Residual Plot-version 2")
+```
+\newpage
+5. Look at the ggplot2 function geom_smooth() and use it to create the scatter plot with the least squares regression line superimposed. (Hint: Use with method="lm")
+
+```{r}
+baseplot = ggplot(data = data, mapping = aes(x=CouponRate, y=BidPrice))
+baseplot + geom_point(size=1.5,color="blue") + labs(x="Coupon Rate", y="Bid Price",
+title= "Bid Price vs Coupon Rate", subtitle= "Linear Best Fit") +
+  geom_smooth(method="lm")
+```

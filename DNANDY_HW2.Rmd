@@ -1,0 +1,111 @@
+---
+title: "Homework 2"
+author: "46-921, Fall 2018"
+date: "Due Wednesday, September 12 at 1:00 PM"
+output: pdf_document
+---
+
+\large
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+You should submit the Rmd file with your answers in the
+appropriate spaces. Rename the file as `YOURANDREWID_HW2.Rmd`
+and submit it via Canvas. Also submit the `.pdf` file that
+is produced.
+
+Of course, any code that is written should be tested. In each
+case you are requested to include some __simple__ examples showing that
+your code works. Think about how your example(s) can illustrate 
+the range of possibilities that the code could face.
+
+\vspace{.2in}
+
+1. Suppose that `charvec` is a vector of type `character`.
+Write a __single__ line of R code that returns a new, single character
+string that consists of all of the elements of `charvec`
+concatenated end to end. For example,
+`charvec = c("a","b","c")`
+should become `"abc"`.
+
+```{r}
+charvec1 = c("a","b","c")
+charvec2 = c("a", " ", "x")
+charvec3 = c("This", "is","a","Test")
+paste(charvec1,sep='',collapse = '')
+paste(charvec2,sep='',collapse = '')
+paste(charvec3,sep='',collapse = '')
+```
+This paste can be used on string data after reading it from a csv file, to combine multiple columns into one. It can also be used for labeling plots made in R
+
+2. Write an R function that takes a numeric vector as input
+and returns the ``five-number summary`` as a __list__.
+The five-number summary consists of the minimum, the
+25th, 50th, and 75th percentile, along with the maximum.
+Name the components of the list appropriately.
+
+```{r}
+five_num_summary = function(numvec)
+{
+   res = quantile(numvec,c(0.0, 0.25, 0.5, 0.75, 1.0),na.rm = T)
+   return( as.list(res))
+}
+five_num_summary(c(1,2,3,4,5,NA,6,7,8,9,10))
+five_num_summary(c(1.1,2.2,3.3,4.4,5.5,NA,6.6,NA,7.7))
+```
+This function can be called on a large dataset to quickly get the useful quantile information.
+
+
+3. Write an R function that, when given a vector of strings,
+returns the position(s) of the longest strings in the vector.
+
+```{r}
+longest_string_pos = function(stringvec)
+{
+   countcharvec = sapply(stringvec,nchar, USE.NAMES = F)
+   pos = which(countcharvec ==  max(countcharvec))
+   return(pos)
+}
+longest_string_pos(c("one", "two", "three", "five", "eleven"))
+longest_string_pos(c("This", "is", "a", "test", "for", "multple", "longest", "string"))
+longest_string_pos(c("Does", "this", "Work", "????"))
+```
+
+4. Create an __infix__ operator that returns whether or not a
+number is a multiple of another. Call it %m%. In other words,
+`10 %m% 5` should be `TRUE` while `10 %m% 3` should be `FALSE`.
+
+```{r}
+"%m%" = function(x,y)
+{
+  if(x%%y == 0 || y%%x == 0)
+    return(TRUE)
+  
+  return(FALSE)
+}
+
+10%m%5
+5%m%10
+1%m%10        #Should be true always
+1.23%m%3.69   #Works for fractions too!
+1.24%m%5      #Should return false
+```
+
+
+5. Go to the following website:
+[https://www.sec.gov/data/foiadocsfailsdatahtm](https://www.sec.gov/data/foiadocsfailsdatahtm)
+and download the __July 2017, Second Half__ data set.
+Read these data into R and create an appropriate data frame.
+Be sure that each column is in an appropriate form (date, factor,
+character, etc.)
+When reading in the file, __do not make any changes to the data
+file itself__. Resolve any issues using appropriate R commands.
+
+```{r}
+data = read.delim("cnsfails201707b.txt", header = TRUE, sep = "|")
+data$SETTLEMENT.DATE = as.Date(as.character(data$SETTLEMENT.DATE),format = "%Y%m%d")
+df = as.data.frame(data)
+```
+

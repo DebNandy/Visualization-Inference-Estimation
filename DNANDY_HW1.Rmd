@@ -1,0 +1,133 @@
+---
+title: "Homework 1"
+author: "46-921, Fall 2018"
+date: "Due Wednesday, September 5 at 1:00 PM"
+output:
+  pdf_document: default
+  word_document: default
+  html_document:
+    df_print: paged
+---
+
+\large
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+You should submit the `.Rmd` file with your answers in the
+appropriate spaces. Rename the file as `YOURANDREWID_HW1.Rmd`
+and submit it via Canvas. You should also "Knit" the `.Rmd`
+file and submit the resulting file `YOURANDREWID_HW1.pdf` as well.
+
+Of course, any code that is written should be tested. In each
+case you are requested to include some examples showing that
+your code works. Think about how your example(s) can illustrate 
+the range of possibilities that the code could face.
+
+\vspace{.2in}
+
+
+1. Suppose that `frameex` is a data frame. Write a single line of
+R code that returns a logical vector of length equal to the number of
+rows in `frameex`. The value should be `TRUE` if the corresponding
+row is __complete__, i.e., it has no `NA` values. If there is at least
+one `NA` value in the row, then the value should be `FALSE`.
+
+```{r}
+frameex = data.frame("ID" = 1:4, "Ticker" = c(NA,'GS','IBM','TSLA'),
+                     "price" = c(700.0, NA, 123.4, 71.4));
+rowSums(is.na(frameex)) != 1
+```
+Ans. If the dataframe represents some extracted data on which some
+analysis will be performed, then above command can be used to identify
+those rows with missing values in the dataframe. Then one can remove 
+those entries from the dataframe before performing any statistical 
+analysis or refer to those rows when trying to find why the entries 
+were missing
+
+2. Suppose that `x` and `y` are both
+vectors, and I want to find the first instance of
+__any__ entry in `x` appearing in `y`. Write R code
+to do this. Be careful about `NA` values. If no element
+of `x` is in `y`, the value should be `NA`.
+For example, if `x=c(1,2,3)` and `y=c(4,2,1)`, then the
+code should return `2` because the second position in `y` is
+the first to contain an element that is in `x`.
+__Hint:__ One approach is to use `match()` and `sort()`.
+
+```{r, include=TRUE,eval=TRUE}
+x = c(2,4,6,8,1)
+y = c(5,3,1,7,9,2)
+key = sort(match(x,y,incomparables=NA),na.last=TRUE)[1]
+y[key]
+```
+
+Ans. If set x represents possible events or values of certain random variable and set y represents the occurrence of certain events or values observed with timestamps and we wish to know the timestamp when events in set x took place for the first time then we can perform the above logic to get the timestamp and corresponding event that took place earliest.
+
+3. What does R do in a case when a reference is made to a 
+position that is beyond the range of a vector? For example,
+if `x=c(1,2,3)`, and reference is made to `x[4]`?
+
+Ans : R shows the value as NA meaning the value is missing in that location
+
+4. Suppose that `n` and `m` are both positive integers. Write
+a single line of R code that creates a `n` by `m` matrix
+whose $j^{th}$ column is filled with $j$.
+
+```{r}
+m=4
+n=5
+t(matrix(rep(1:m,n),nrow = m)) 
+```
+Ans. Some of the machine learning application performs padding to the data before performing the optimization or running feature identification models. Above method can be used to perform such padding around the data matrix 
+
+5. What does R do in a case where `cbind()` is used in an 
+attempt to join two matrices that have different numbers of
+rows?
+
+Ans. If the number of rows are some multiple of each other for example if the number of rows are 3,9 or 8,2, then the smaller sized vector is wrapped around and repeated to match the size of the larger vector and the matrix is created. If the above condition is not met the cbind throws an error saying it cannot create the matrix.
+
+6. Suppose that `factex` is a vector, and a __factor__. The
+levels of this factor are `a`, `b`, and `c`. Does it make
+sense to write `factex >= "b"`? __Be careful!__ Explain your
+response clearly.
+
+Ans. If `factex` is a vector with factors as character values such as `a`, `b`, `c` then in order to perform comparison operator between the elements, some sort of ordering needs to be specified. Which is why, writing `factex>="b"` doesn't make sense in unordered factors, but if some ordering is provided between the levels then comparison operator will work fine. For example, if `factex = factor(c('a', 'b', 'c', 'a'), ordered=TRUE)` then using `factex>="b"` is perfectly valid and the `>=` operator will use the ordering between the levels to return the result.
+
+7. If you construct a data frame from a matrix, but do not
+supply names for the variables, what does R do?
+
+Ans. If the names for the variables is not supplied then R names the variables by default with X1, X2, X3...
+
+8. Give at least three ways a data frame differs from a matrix.
+
+Ans. a. Data frame can contain data of different types such as integer, character etc. whereas matrix can contain only one type of data
+
+b. Dataframe columns can be named which is useful to access the data under a certain category and perform particular analysis on that category. Matrix doesn't provide the functionality of naming the columns and thus difficult to perform such category specific operations
+
+c. Dataframe being heterogeneous in containing data types, it's more appropriate in extracting real life data where data comes along with identifiers or labels, whereas many mathematical operations around linear algebra can be performed only with matrix datatype. For example performing eigen value calculation or solving linear equations etc. Matrix datatype needs to be used for such operations where dataframe needs to be converted to a matrix before such operations can be performed on dataframes.
+
+9. Explore the function `unique()`. How could you use this
+function to remove redundant __columns__ in a matrix or
+data frame?
+
+For a data frame:
+```{r}
+df = data.frame(ID=c(1,2,3,4), ID = c(1,2,3,4),
+                price=c(1.4,2.3,4.5,5.2))
+df
+data.frame(t(unique(t(df))))
+```
+For a matrix:
+```{r}
+Matex = rbind(c(1,1,2,3), c(1,1,2,4))
+Matex
+unique(Matex,MARGIN = 2)
+```
+
+
+
+
+
+
